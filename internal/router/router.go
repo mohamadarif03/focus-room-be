@@ -22,7 +22,6 @@ func SetupRouter() *gin.Engine {
 	{
 		userRoutes := api.Group("/users")
 		{
-			userRoutes.POST("/", userHandler.CreateUser)
 			userRoutes.GET("/", userHandler.GetUsers)
 		}
 	}
