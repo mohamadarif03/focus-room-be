@@ -1,14 +1,17 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type User struct {
-	gorm.Model
-	Name  string `gorm:"type:varchar(100)" json:"name"`
-	Email string `gorm:"type:varchar(100);uniqueIndex" json:"email"`
-}
-
-type CreateUserInput struct {
-	Name  string `json:"name" binding:"required"`
-	Email string `json:"email" binding:"required,email"`
+	ID             uint      `gorm:"primaryKey" json:"id"` 
+	Username       string    `gorm:"size:255;not null" json:"username"`
+	Email          string    `gorm:"size:255;not null;unique" json:"email"`
+	PasswordHash   string    `gorm:"size:255;not null" json:"-"`
+	Role           string    `gorm:"size:50;not null" json:"role"`
+	CurrentStreak  int       `gorm:"default:0" json:"current_streak"`
+	KodePembimbing string    `gorm:"size:50;unique;null" json:"kode_pembimbing"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }

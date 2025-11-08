@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/mohamadarif03/focus-room-be/internal/service"
+	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,9 +20,9 @@ func NewUserHandler(s *service.UserService) *UserHandler {
 func (h *UserHandler) GetUsers(c *gin.Context) {
 	users, err := h.service.GetAllUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	utils.Success(c.Writer, users, "Succesfully retreived users", http.StatusOK)
 }

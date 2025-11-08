@@ -15,14 +15,23 @@ func SetupRouter() *gin.Engine {
 	db := database.DB
 
 	userRepo := repository.NewUserRepository(db)
+
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
+	authService := service.NewAuthService(userRepo)
+	authHandler := handler.NewAuthHandler(authService)
+
 	api := r.Group("/api/v1")
 	{
-		userRoutes := api.Group("/users")
+		authGroup := api.Group("/auth")
 		{
-			userRoutes.GET("/", userHandler.GetUsers)
+			authGroup.POST("/register", authHandler.Register)
+		}
+
+		userGroup := api.Group("/users")
+		{
+			userGroup.GET("/", userHandler.GetUsers)
 		}
 	}
 
