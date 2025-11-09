@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+
 	"github.com/mohamadarif03/focus-room-be/internal/config"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
 	"github.com/mohamadarif03/focus-room-be/internal/model"
 	"github.com/mohamadarif03/focus-room-be/internal/router"
-	"log"
 )
 
 func main() {
@@ -17,9 +18,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to auto-migrate database:", err)
 	}
-	
-	log.Println("Database migration completed")
 
+	log.Println("Database migration completed")
 
 	r := router.SetupRouter()
 

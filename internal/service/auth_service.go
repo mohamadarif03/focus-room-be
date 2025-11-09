@@ -18,7 +18,7 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 	return &AuthService{userRepo: userRepo}
 }
 
-func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, error) {
+func (s *AuthService) Register(req dto.RegisterRequest) (*dto.AuthResponse, error) {
 	existingUser, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("database error")
@@ -49,11 +49,41 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.RegisterResponse, 
 		return nil, errors.New("failed to generate token")
 	}
 
-	response := &dto.RegisterResponse{
+	response := &dto.AuthResponse{
 		ID:       createdUser.ID,
 		Username: createdUser.Username,
 		Email:    createdUser.Email,
 		Role:     createdUser.Role,
+		Token:    token,
+	}
+
+	return response, nil
+}
+
+func (s *AuthService) Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
+	user, err := s.userRepo.FindByEmail(req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("email atau password salah")
+		}
+		return nil, errors.New("database error")
+	}
+
+	isValidPassword := utils.VerifyPassword(user.PasswordHash, req.Password)
+	if !isValidPassword {
+		return nil, errors.New("email atau password salah")
+	}
+
+	token, err := utils.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		return nil, errors.New("gagal membuat token")
+	}
+
+	response := &dto.AuthResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
 		Token:    token,
 	}
 
