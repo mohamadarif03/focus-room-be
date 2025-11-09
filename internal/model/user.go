@@ -11,7 +11,7 @@ type User struct {
 	PasswordHash   string    `gorm:"size:255;not null" json:"-"`
 	Role           string    `gorm:"size:50;not null" json:"role"`
 	CurrentStreak  int       `gorm:"default:0" json:"current_streak"`
-	KodePembimbing string    `gorm:"size:50;unique;null" json:"kode_pembimbing"`
+	KodePembimbing *string    `gorm:"size:50;unique;null" json:"kode_pembimbing"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

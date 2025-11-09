@@ -22,6 +22,7 @@ func main() {
 	log.Println("Database migration completed")
 
 	r := router.SetupRouter()
+	database.Seed()
 
 	log.Println("Starting server on port :8080")
 	if err := r.Run(":8080"); err != nil {
