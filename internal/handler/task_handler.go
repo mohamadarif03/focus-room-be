@@ -51,3 +51,25 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	utils.Success(c.Writer, response, "Task berhasil ditambahkan", http.StatusCreated)
 }
+
+func (h *TaskHandler) GetTasks(c *gin.Context) {
+	userIDString, _ := c.Get("user_id")
+
+	dateQuery := c.Query("date")
+
+	response, err := h.service.GetTasks(userIDString.(string), dateQuery)
+	if err != nil {
+		if err.Error() == "format tanggal tidak valid, gunakan YYYY-MM-DD" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+			return
+		}
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	message := "Berhasil mengambil tasks untuk hari ini"
+	if dateQuery != "" {
+		message = "Berhasil mengambil tasks untuk tanggal " + dateQuery
+	}
+	utils.Success(c.Writer, response, message, http.StatusOK)
+}

@@ -44,10 +44,8 @@ func SetupRouter() *gin.Engine {
 		studentGroup.Use(middleware.AuthMiddleware())
 		studentGroup.Use(middleware.StudentMiddleware())
 		{
-			taskGroup := studentGroup.Group("/tasks")
-			{
-				taskGroup.POST("/", taskHandler.CreateTask)
-			}
+			studentGroup.POST("/tasks", taskHandler.CreateTask)
+			studentGroup.GET("/tasks", taskHandler.GetTasks)
 		}
 
 		adminGroup := api.Group("/admin")
