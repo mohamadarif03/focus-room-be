@@ -3,7 +3,7 @@ package router
 import (
 	"github.com/mohamadarif03/focus-room-be/internal/database"
 	"github.com/mohamadarif03/focus-room-be/internal/handler"
-	"github.com/mohamadarif03/focus-room-be/internal/middleware" 
+	"github.com/mohamadarif03/focus-room-be/internal/middleware"
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
 
@@ -21,6 +21,9 @@ func SetupRouter() *gin.Engine {
 	authService := service.NewAuthService(userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 
+	taskRepo := repository.NewTaskRepository(db)
+	taskService := service.NewTaskService(taskRepo)
+	taskHandler := handler.NewTaskHandler(taskService)
 
 	api := r.Group("/api/v1")
 	{
@@ -31,22 +34,32 @@ func SetupRouter() *gin.Engine {
 		}
 
 		authedGroup := api.Group("/")
-		authedGroup.Use(middleware.AuthMiddleware()) 
+		authedGroup.Use(middleware.AuthMiddleware())
 		{
 			authedGroup.GET("/users/me", userHandler.GetSelf)
 
 		}
 
+		studentGroup := api.Group("/student")
+		studentGroup.Use(middleware.AuthMiddleware())
+		studentGroup.Use(middleware.StudentMiddleware())
+		{
+			taskGroup := studentGroup.Group("/tasks")
+			{
+				taskGroup.POST("/", taskHandler.CreateTask)
+			}
+		}
+
 		adminGroup := api.Group("/admin")
 		adminGroup.Use(middleware.AuthMiddleware())
-		adminGroup.Use(middleware.AdminMiddleware()) 
+		adminGroup.Use(middleware.AdminMiddleware())
 		{
 			adminGroup.GET("/users", userHandler.GetUsers)
-			
+
 			adminGroup.GET("/users/:id", userHandler.GetUserByID)
-			
+
 			adminGroup.PUT("/users/:id", userHandler.UpdateUser)
-			
+
 			adminGroup.DELETE("/users/:id", userHandler.DeleteUser)
 		}
 	}

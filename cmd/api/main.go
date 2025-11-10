@@ -14,10 +14,8 @@ func main() {
 
 	database.InitDB()
 
-	err := database.DB.AutoMigrate(&model.User{})
-	if err != nil {
-		log.Fatal("Failed to auto-migrate database:", err)
-	}
+	database.DB.AutoMigrate(&model.User{})
+	database.DB.AutoMigrate(&model.Task{})
 
 	log.Println("Database migration completed")
 

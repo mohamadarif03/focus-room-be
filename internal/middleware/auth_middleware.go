@@ -64,3 +64,29 @@ func AdminMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func StudentMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		roleValue, exists := c.Get("role")
+		if !exists {
+			utils.Error(c.Writer, nil, "Gagal mengambil role dari context", http.StatusInternalServerError)
+			c.Abort()
+			return
+		}
+
+		role, ok := roleValue.(string)
+		if !ok {
+			utils.Error(c.Writer, nil, "Role di context formatnya salah", http.StatusInternalServerError)
+			c.Abort()
+			return
+		}
+		if role != "siswa" {
+			utils.Error(c.Writer, nil, "Akses ditolak. Hanya untuk siswa.", http.StatusForbidden)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+
+	}
+}
