@@ -26,7 +26,7 @@ func (r *TaskRepository) CreateTask(task *model.Task) (*model.Task, error) {
 func (r *TaskRepository) FindTasksByUserIDAndDate(userID uint, date time.Time) ([]model.Task, error) {
 	var tasks []model.Task
 
-	err := r.db.Where("user_id = ? AND task_date = ?", userID, date).Find(&tasks).Error
+	err := r.db.Where("user_id = ? AND task_date = ?", userID, date).Order("created_at DESC").Find(&tasks).Error
 	if err != nil {
 		return nil, err
 	}
