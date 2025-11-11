@@ -46,6 +46,8 @@ func SetupRouter() *gin.Engine {
 		{
 			studentGroup.POST("/tasks", taskHandler.CreateTask)
 			studentGroup.GET("/tasks", taskHandler.GetTasks)
+			studentGroup.PUT("tasks/:id", taskHandler.UpdateTask)
+			studentGroup.DELETE("tasks/:id", taskHandler.DeleteTask)
 		}
 
 		adminGroup := api.Group("/admin")

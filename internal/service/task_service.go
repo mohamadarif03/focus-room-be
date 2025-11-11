@@ -8,6 +8,7 @@ import (
 	"github.com/mohamadarif03/focus-room-be/internal/dto"
 	"github.com/mohamadarif03/focus-room-be/internal/model"
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
+	"gorm.io/gorm"
 )
 
 type TaskService struct {
@@ -52,7 +53,69 @@ func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string)
 	return response, nil
 }
 
+func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req dto.UpdateTaskRequest) (*dto.TaskResponse, error) {
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("user ID tidak valid")
+	}
+	taskID, err := strconv.ParseUint(taskIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("task ID tidak valid")
+	}
 
+	task, err := s.taskRepo.FindByID(uint(taskID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("task tidak ditemukan")
+		}
+		return nil, errors.New("gagal mengambil data task")
+	}
+
+	if task.UserID != uint(userID) {
+		return nil, errors.New("akses ditolak: anda bukan pemilik task ini") // 403
+	}
+
+	task.Title = req.Title
+	task.IsCompleted = req.IsCompleted
+
+	updatedTask, err := s.taskRepo.Update(task)
+	if err != nil {
+		return nil, errors.New("gagal mengupdate task")
+	}
+
+	response := taskToResponse(updatedTask)
+	return &response, nil
+}
+
+func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error {
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return errors.New("user ID tidak valid")
+	}
+	taskID, err := strconv.ParseUint(taskIDString, 10, 32)
+	if err != nil {
+		return errors.New("task ID tidak valid")
+	}
+
+	task, err := s.taskRepo.FindByID(uint(taskID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("task tidak ditemukan")
+		}
+		return errors.New("gagal mengambil data task")
+	}
+
+	if task.UserID != uint(userID) {
+		return errors.New("akses ditolak: anda bukan pemilik task ini") // 403
+	}
+
+	err = s.taskRepo.Delete(uint(taskID))
+	if err != nil {
+		return errors.New("gagal menghapus task")
+	}
+
+	return nil
+}
 
 func (s *TaskService) GetTasks(userIDString string, dateQuery string) ([]dto.TaskResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
@@ -80,14 +143,18 @@ func (s *TaskService) GetTasks(userIDString string, dateQuery string) ([]dto.Tas
 
 	var taskResponses []dto.TaskResponse
 	for _, task := range tasks {
-		taskResponses = append(taskResponses, dto.TaskResponse{
-			ID:          task.ID,
-			Title:       task.Title,
-			IsCompleted: task.IsCompleted,
-			TaskDate:    task.TaskDate,
-			UserID:      task.UserID,
-		})
+		taskResponses = append(taskResponses, taskToResponse(&task))
 	}
 
 	return taskResponses, nil
+}
+
+func taskToResponse(task *model.Task) dto.TaskResponse {
+	return dto.TaskResponse{
+		ID:          task.ID,
+		Title:       task.Title,
+		IsCompleted: task.IsCompleted,
+		TaskDate:    task.TaskDate,
+		UserID:      task.UserID,
+	}
 }

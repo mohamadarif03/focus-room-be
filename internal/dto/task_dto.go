@@ -4,7 +4,7 @@ import "time"
 
 type CreateTaskRequest struct {
 	Title    string `json:"title" binding:"required"`
-	TaskDate string `json:"task_date" binding:"required"` 
+	TaskDate string `json:"task_date" binding:"required"`
 }
 
 type TaskResponse struct {
@@ -13,4 +13,9 @@ type TaskResponse struct {
 	IsCompleted bool      `json:"is_completed"`
 	TaskDate    time.Time `json:"task_date"`
 	UserID      uint      `json:"user_id"`
+}
+
+type UpdateTaskRequest struct {
+	Title       string `json:"title" binding:"required"`
+	IsCompleted bool   `json:"is_completed"`
 }
