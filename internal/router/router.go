@@ -9,6 +9,7 @@ import (
 	"github.com/mohamadarif03/focus-room-be/internal/middleware"
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
+	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,10 +20,16 @@ func SetupRouter() *gin.Engine {
 	db := database.DB
 
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+	youtubeAPIKey := os.Getenv("YOUTUBE_API_KEY")
+
+	if err := utils.InitYouTubeService(youtubeAPIKey); err != nil {
+		log.Fatalf("Gagal inisialisasi YouTube Service: %v", err)
+	}
 
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
+
 	authService := service.NewAuthService(userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 
@@ -30,7 +37,9 @@ func SetupRouter() *gin.Engine {
 	taskService := service.NewTaskService(taskRepo)
 	taskHandler := handler.NewTaskHandler(taskService)
 
-	aiService, err := service.NewAIService(geminiAPIKey)
+	matRepo := repository.NewMaterialRepository(db)
+
+	aiService, err := service.NewAIService(geminiAPIKey, matRepo) // <-- Perlu matRepo
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
 	}
@@ -48,21 +57,30 @@ func SetupRouter() *gin.Engine {
 		authedGroup.Use(middleware.AuthMiddleware())
 		{
 			authedGroup.GET("/users/me", userHandler.GetSelf)
-
 		}
 
 		studentGroup := api.Group("/student")
 		studentGroup.Use(middleware.AuthMiddleware())
 		studentGroup.Use(middleware.StudentMiddleware())
 		{
-			studentGroup.POST("/tasks", taskHandler.CreateTask)
-			studentGroup.GET("/tasks", taskHandler.GetTasks)
-			studentGroup.PUT("tasks/:id", taskHandler.UpdateTask)
-			studentGroup.DELETE("tasks/:id", taskHandler.DeleteTask)
+			taskGroup := studentGroup.Group("/tasks")
+			{
+				taskGroup.POST("/", taskHandler.CreateTask)
+				taskGroup.GET("/", taskHandler.GetTasks)
+				taskGroup.PUT("/:id", taskHandler.UpdateTask)
+				taskGroup.DELETE("/:id", taskHandler.DeleteTask)
+			}
+
+			materialGroup := studentGroup.Group("/materials")
+			{
+				materialGroup.POST("/pdf", aiHandler.IngestPDF)
+				materialGroup.POST("/youtube", aiHandler.IngestYouTube)
+			}
 
 			aiGroup := studentGroup.Group("/ai")
 			{
-				aiGroup.POST("/summarize/pdf", aiHandler.SummarizePDF)
+				aiGroup.POST("/summarize", aiHandler.GenerateSummary)
+				aiGroup.POST("/quiz", aiHandler.GenerateQuiz)
 			}
 		}
 
@@ -71,11 +89,8 @@ func SetupRouter() *gin.Engine {
 		adminGroup.Use(middleware.AdminMiddleware())
 		{
 			adminGroup.GET("/users", userHandler.GetUsers)
-
 			adminGroup.GET("/users/:id", userHandler.GetUserByID)
-
 			adminGroup.PUT("/users/:id", userHandler.UpdateUser)
-
 			adminGroup.DELETE("/users/:id", userHandler.DeleteUser)
 		}
 	}

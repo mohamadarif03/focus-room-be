@@ -16,6 +16,7 @@ func main() {
 
 	database.DB.AutoMigrate(&model.User{})
 	database.DB.AutoMigrate(&model.Task{})
+	database.DB.AutoMigrate(&model.Material{})
 
 	log.Println("Database migration completed")
 
