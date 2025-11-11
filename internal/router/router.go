@@ -1,6 +1,9 @@
 package router
 
 import (
+	"log"
+	"os"
+
 	"github.com/mohamadarif03/focus-room-be/internal/database"
 	"github.com/mohamadarif03/focus-room-be/internal/handler"
 	"github.com/mohamadarif03/focus-room-be/internal/middleware"
@@ -15,6 +18,8 @@ func SetupRouter() *gin.Engine {
 
 	db := database.DB
 
+	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
@@ -24,6 +29,12 @@ func SetupRouter() *gin.Engine {
 	taskRepo := repository.NewTaskRepository(db)
 	taskService := service.NewTaskService(taskRepo)
 	taskHandler := handler.NewTaskHandler(taskService)
+
+	aiService, err := service.NewAIService(geminiAPIKey)
+	if err != nil {
+		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
+	}
+	aiHandler := handler.NewAIHandler(aiService)
 
 	api := r.Group("/api/v1")
 	{
@@ -48,6 +59,11 @@ func SetupRouter() *gin.Engine {
 			studentGroup.GET("/tasks", taskHandler.GetTasks)
 			studentGroup.PUT("tasks/:id", taskHandler.UpdateTask)
 			studentGroup.DELETE("tasks/:id", taskHandler.DeleteTask)
+
+			aiGroup := studentGroup.Group("/ai")
+			{
+				aiGroup.POST("/summarize/pdf", aiHandler.SummarizePDF)
+			}
 		}
 
 		adminGroup := api.Group("/admin")
