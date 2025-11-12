@@ -40,13 +40,11 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 	utils.Success(c.Writer, response, "Materi PDF berhasil disimpan", http.StatusCreated)
 }
 
-// --- HANDLER 2: INGEST YOUTUBE ---
 func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	userIDString, _ := c.Get("user_id")
 	var req dto.IngestYouTubeRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// ... (handle error validasi) ...
 		var validationErrs validator.ValidationErrors
 		if errors.As(err, &validationErrs) {
 			formattedErrors := utils.FormatValidationError(validationErrs)
@@ -65,13 +63,11 @@ func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	utils.Success(c.Writer, response, "Materi YouTube berhasil disimpan", http.StatusCreated)
 }
 
-// --- HANDLER 3: GENERATE SUMMARY ---
 func (h *AIHandler) GenerateSummary(c *gin.Context) {
 	userIDString, _ := c.Get("user_id")
 	var req dto.GenerateSummaryRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// ... (handle error validasi) ...
 		return
 	}
 
@@ -87,13 +83,11 @@ func (h *AIHandler) GenerateSummary(c *gin.Context) {
 	utils.Success(c.Writer, response, "Rangkuman berhasil dibuat", http.StatusOK)
 }
 
-// --- HANDLER 4: GENERATE QUIZ ---
 func (h *AIHandler) GenerateQuiz(c *gin.Context) {
 	userIDString, _ := c.Get("user_id")
 	var req dto.GenerateQuizRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// ... (handle error validasi) ...
 		return
 	}
 

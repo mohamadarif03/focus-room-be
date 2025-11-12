@@ -1,48 +1,25 @@
 package router
 
 import (
-	"log"
-	"os"
-
-	"github.com/mohamadarif03/focus-room-be/internal/database"
 	"github.com/mohamadarif03/focus-room-be/internal/handler"
 	"github.com/mohamadarif03/focus-room-be/internal/middleware"
-	"github.com/mohamadarif03/focus-room-be/internal/repository"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
-	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter() *gin.Engine {
+func SetupRouter(
+	userService *service.UserService,
+	authService *service.AuthService,
+	taskService *service.TaskService,
+	aiService *service.AIService,
+) *gin.Engine {
+
 	r := gin.Default()
 
-	db := database.DB
-
-	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
-	youtubeAPIKey := os.Getenv("YOUTUBE_API_KEY")
-
-	if err := utils.InitYouTubeService(youtubeAPIKey); err != nil {
-		log.Fatalf("Gagal inisialisasi YouTube Service: %v", err)
-	}
-
-	userRepo := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-
-	authService := service.NewAuthService(userRepo)
 	authHandler := handler.NewAuthHandler(authService)
-
-	taskRepo := repository.NewTaskRepository(db)
-	taskService := service.NewTaskService(taskRepo)
 	taskHandler := handler.NewTaskHandler(taskService)
-
-	matRepo := repository.NewMaterialRepository(db)
-
-	aiService, err := service.NewAIService(geminiAPIKey, matRepo) // <-- Perlu matRepo
-	if err != nil {
-		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
-	}
 	aiHandler := handler.NewAIHandler(aiService)
 
 	api := r.Group("/api/v1")
@@ -81,6 +58,11 @@ func SetupRouter() *gin.Engine {
 			{
 				aiGroup.POST("/summarize", aiHandler.GenerateSummary)
 				aiGroup.POST("/quiz", aiHandler.GenerateQuiz)
+			}
+
+			streakGroup := studentGroup.Group("/streaks")
+			{
+				streakGroup.POST("/check", userHandler.CheckAndUpdateStreak)
 			}
 		}
 

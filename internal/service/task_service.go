@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"time"
 
@@ -13,10 +14,11 @@ import (
 
 type TaskService struct {
 	taskRepo *repository.TaskRepository
+	userRepo *repository.UserRepository
 }
 
-func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
-	return &TaskService{taskRepo: taskRepo}
+func NewTaskService(taskRepo *repository.TaskRepository, userRepo *repository.UserRepository) *TaskService {
+	return &TaskService{taskRepo: taskRepo, userRepo: userRepo}
 }
 
 func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string) (*dto.TaskResponse, error) {
@@ -54,14 +56,8 @@ func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string)
 }
 
 func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req dto.UpdateTaskRequest) (*dto.TaskResponse, error) {
-	userID, err := strconv.ParseUint(userIDString, 10, 32)
-	if err != nil {
-		return nil, errors.New("user ID tidak valid")
-	}
-	taskID, err := strconv.ParseUint(taskIDString, 10, 32)
-	if err != nil {
-		return nil, errors.New("task ID tidak valid")
-	}
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+	taskID, _ := strconv.ParseUint(taskIDString, 10, 32)
 
 	task, err := s.taskRepo.FindByID(uint(taskID))
 	if err != nil {
@@ -72,19 +68,74 @@ func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req d
 	}
 
 	if task.UserID != uint(userID) {
-		return nil, errors.New("akses ditolak: anda bukan pemilik task ini") // 403
+		return nil, errors.New("akses ditolak: anda bukan pemilik task ini")
 	}
 
 	task.Title = req.Title
 	task.IsCompleted = req.IsCompleted
-
 	updatedTask, err := s.taskRepo.Update(task)
 	if err != nil {
 		return nil, errors.New("gagal mengupdate task")
 	}
 
+	if req.IsCompleted {
+		go s.checkRealtimeStreak(uint(userID), task.TaskDate)
+	}
+
 	response := taskToResponse(updatedTask)
 	return &response, nil
+}
+
+func (s *TaskService) checkRealtimeStreak(userID uint, taskDate time.Time) {
+	log.Printf("[Streak H-0] User %d menyelesaikan task. Memeriksa...", userID)
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+	taskDay := time.Date(taskDate.Year(), taskDate.Month(), taskDate.Day(), 0, 0, 0, 0, time.Local)
+	if !taskDay.Equal(today) {
+		log.Printf("[Streak H-0] User %d menyelesaikan task lama. Streak H-0 diabaikan.", userID)
+		return
+	}
+
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return
+	}
+
+	if user.LastStreakAwardedDate != nil {
+		lastAward := *user.LastStreakAwardedDate
+		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
+		if lastAwardDate.Equal(today) {
+			log.Printf("[Streak H-0] User %d sudah dapat imbalan hari ini. Diabaikan.", userID)
+			return
+		}
+	}
+
+	tasksToday, err := s.taskRepo.FindTasksByUserIDAndDate(userID, today)
+	if err != nil {
+		return
+	}
+
+	totalTasks := len(tasksToday)
+	completedTasks := 0
+	for _, t := range tasksToday {
+		if t.IsCompleted {
+			completedTasks++
+		}
+	}
+
+	if totalTasks > 0 && totalTasks == completedTasks {
+		user.CurrentStreak += 1
+		user.LastStreakAwardedDate = &now
+
+		_, err := s.userRepo.Update(user)
+		if err == nil {
+			log.Printf("[Streak H-0] SUKSES! User %d menyelesaikan semua task H-0. Streak naik ke %d.", userID, user.CurrentStreak)
+		}
+	} else {
+		log.Printf("[Streak H-0] User %d belum selesai. (Total: %d, Selesai: %d)", userID, totalTasks, completedTasks)
+	}
 }
 
 func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error {

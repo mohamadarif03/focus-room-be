@@ -1,15 +1,15 @@
 package handler
 
 import (
-	"errors" 
+	"errors"
 	"net/http"
-	"strconv" 
+	"strconv"
 
-	"github.com/mohamadarif03/focus-room-be/internal/dto" 
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/mohamadarif03/focus-room-be/internal/dto"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
 	"github.com/mohamadarif03/focus-room-be/pkg/utils"
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10" 
 )
 
 type UserHandler struct {
@@ -28,7 +28,6 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	}
 	utils.Success(c.Writer, users, "Berhasil mengambil data users", http.StatusOK)
 }
-
 
 func (h *UserHandler) GetSelf(c *gin.Context) {
 	userID, _ := c.Get("user_id")
@@ -89,6 +88,27 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	utils.Success(c.Writer, user, "Berhasil memperbarui user", http.StatusOK)
 }
 
+func (h *UserHandler) CheckAndUpdateStreak(c *gin.Context) {
+	userIDString, exists := c.Get("user_id")
+	if !exists {
+		utils.Error(c.Writer, nil, "Gagal mendapatkan user ID dari token", http.StatusInternalServerError)
+		return
+	}
+
+	_, err := h.service.CheckAndUpdateStreak(userIDString.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response, err := h.service.GetSelf(userIDString.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	utils.Success(c.Writer, response, "Streak berhasil dicek dan diupdate", http.StatusOK)
+}
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
