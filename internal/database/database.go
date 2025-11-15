@@ -22,6 +22,7 @@ func InitDB() {
 	} else {
 		log.Println("DATABASE_URL tidak ditemukan, merakit DSN dari .env (mode Lokal)")
 		host := os.Getenv("DB_HOST")
+		log.Println("DB_HOST")
 		port := os.Getenv("DB_PORT")
 		user := os.Getenv("DB_USER")
 		password := os.Getenv("DB_PASSWORD")
