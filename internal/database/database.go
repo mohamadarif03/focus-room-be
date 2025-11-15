@@ -16,13 +16,11 @@ func InitDB() {
 
 	databaseURL := os.Getenv("DATABASE_URL")
 
-	if databaseURL != "" {
-		dsn = databaseURL
-		log.Println("Menggunakan DATABASE_URL (mode Railway/Produksi)")
+	if databaseURL == "" {
+		dsn = "postgresql://postgres:hByTXiRNwcGYKZvstdqKywOzonClARId@trolley.proxy.rlwy.net:25944/railway"
 	} else {
 		log.Println("DATABASE_URL tidak ditemukan, merakit DSN dari .env (mode Lokal)")
 		host := os.Getenv("DB_HOST")
-		log.Println(os.Getenv("DB_HOST"))
 		port := os.Getenv("DB_PORT")
 		user := os.Getenv("DB_USER")
 		password := os.Getenv("DB_PASSWORD")
