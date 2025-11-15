@@ -14,13 +14,8 @@ import (
 )
 
 func main() {
-	_, isRunningOnRailway := os.LookupEnv("RAILWAY_ENVIRONMENT")
-
-	if !isRunningOnRailway {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Gagal memuat file .env")
-		}
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Gagal memuat file .env")
 	}
 
 	database.InitDB()
