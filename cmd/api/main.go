@@ -28,8 +28,8 @@ func main() {
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{})
 	database.Seed()
 
-	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
-	youtubeAPIKey := os.Getenv("YOUTUBE_API_KEY")
+	geminiAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
+	youtubeAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
 
 	if err := utils.InitYouTubeService(youtubeAPIKey); err != nil {
 		log.Fatalf("Gagal inisialisasi YouTube Service: %v", err)
