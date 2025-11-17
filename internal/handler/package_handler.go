@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/mohamadarif03/focus-room-be/internal/dto"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
 	"github.com/mohamadarif03/focus-room-be/pkg/utils"
@@ -22,7 +24,13 @@ func (h *PackageHandler) CreatePackage(c *gin.Context) {
 	var req dto.PackageRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Data yang diberikan tidak valid", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 
@@ -61,7 +69,13 @@ func (h *PackageHandler) UpdatePackage(c *gin.Context) {
 	idStr := c.Param("id")
 	var req dto.PackageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Data yang diberikan tidak valid", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 
