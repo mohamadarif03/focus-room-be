@@ -21,9 +21,10 @@ import (
 type AIService struct {
 	geminiModel *genai.GenerativeModel
 	matRepo     *repository.MaterialRepository
+	pkgRepo     *repository.PackageRepository
 }
 
-func NewAIService(apiKey string, matRepo *repository.MaterialRepository) (*AIService, error) {
+func NewAIService(apiKey string, matRepo *repository.MaterialRepository, pkgRepo *repository.PackageRepository) (*AIService, error) {
 	if apiKey == "" {
 		return nil, errors.New("GEMINI_API_KEY tidak ditemukan")
 	}
@@ -35,10 +36,42 @@ func NewAIService(apiKey string, matRepo *repository.MaterialRepository) (*AISer
 	}
 
 	model := client.GenerativeModel("gemini-2.5-flash")
-	return &AIService{geminiModel: model, matRepo: matRepo}, nil
+	return &AIService{
+		geminiModel: model,
+		matRepo:     matRepo,
+		pkgRepo:     pkgRepo,
+	}, nil
 }
 
-func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title string, userIDString string) (*dto.MaterialResponse, error) {
+func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error) {
+	if pkgIDStr == "" {
+		return nil, nil
+	}
+
+	pkgID, err := strconv.ParseUint(pkgIDStr, 10, 32)
+	if err != nil {
+		return nil, errors.New("package_id tidak valid")
+	}
+
+	_, err = s.pkgRepo.FindByID(uint(pkgID), userID)
+	if err != nil {
+		return nil, errors.New("package tidak ditemukan atau anda bukan pemiliknya")
+	}
+
+	finalID := uint(pkgID)
+	return &finalID, nil
+}
+
+// ------------------------------------
+
+func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString string) (*dto.MaterialResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	pkgID, err := s.validatePackage(packageIDStr, uint(userID))
+	if err != nil {
+		return nil, err
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		return nil, errors.New("gagal membuka file")
@@ -53,13 +86,13 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 		return nil, errors.New("PDF ini tidak mengandung teks")
 	}
 
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	newMaterial := &model.Material{
 		UserID:        uint(userID),
 		Title:         title,
 		SourceType:    "pdf",
 		Source:        fileHeader.Filename,
 		ExtractedText: rawText,
+		PackageID:     pkgID,
 	}
 	savedMat, err := s.matRepo.Save(newMaterial)
 	if err != nil {
@@ -76,6 +109,17 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 }
 
 func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString string) (*dto.MaterialResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+	var pkgID *uint
+
+	if req.PackageID != nil {
+		_, err := s.pkgRepo.FindByID(*req.PackageID, uint(userID))
+		if err != nil {
+			return nil, errors.New("package tidak ditemukan atau anda bukan pemiliknya")
+		}
+		pkgID = req.PackageID
+	}
+
 	rawText, err := utils.ExtractTextFromYouTube(req.URL)
 	if err != nil {
 		return nil, err
@@ -84,13 +128,13 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		return nil, errors.New("video ini tidak memiliki transkrip")
 	}
 
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	newMaterial := &model.Material{
 		UserID:        uint(userID),
 		Title:         req.Title,
 		SourceType:    "youtube",
 		Source:        req.URL,
 		ExtractedText: rawText,
+		PackageID:     pkgID,
 	}
 	savedMat, err := s.matRepo.Save(newMaterial)
 	if err != nil {
@@ -147,42 +191,78 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	}
 
 	prompt := fmt.Sprintf(
+
 		`Buatkan %d soal latihan berdasarkan materi berikut.
 
+
+
 Hasilkan dalam format JSON array yang valid dan rapi.
+
 Setiap objek di dalam array harus memiliki struktur berikut:
 
+
+
 {
+
   "id": number,
+
   "pertanyaan": "string",
+
   "pilihan": [
+
     {"A": "string"},
+
     {"B": "string"},
+
     {"C": "string"},
+
     {"D": "string"}
+
   ],
+
   "jawaban_benar": "string" // huruf A, B, C, atau D saja
+
 }
 
+
+
 Instruksi penting:
+
 1. Soal harus relevan langsung dengan isi materi dan menguji pemahaman konsep (bukan hafalan).
+
 2. Setiap opsi jawaban harus masuk akal dan proporsional, tidak terlalu mudah ditebak.
+
 3. Hindari pola yang membuat jawaban benar selalu mudah dikenali, seperti:
+
    - jawaban paling panjang atau paling detail,
+
    - posisi jawaban benar selalu sama.
-4. Gunakan bahasa Indonesia yang natural dan jelas, seperti soal buatan manusia.
+
+4. Gunakan bahasa yang natural dan jelas, seperti soal buatan manusia.
+
 5. Variasikan tingkat kesulitan: sebagian soal dasar, sebagian penerapan atau analisis.
+
 6. Jangan tambahkan penjelasan, pembuka, atau teks apa pun di luar format JSON.
+
 7. Pastikan output adalah JSON yang valid dan bisa langsung di-parse tanpa error.
+
 8. Nilai "jawaban_benar" hanya berisi huruf A, B, C, atau D — bukan teks jawaban.
 
+9. Gunakan bahasa sesuai dengan bahasa yang ada didalam materi
+
+
+
 Materi:
+
 %s`,
+
 		req.QuestionCount,
+
 		material.ExtractedText,
 	)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
+
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
 	}
@@ -206,7 +286,9 @@ Materi:
 
 	var questions []dto.QuizQuestion
 	if err := json.Unmarshal([]byte(quizJSON), &questions); err != nil {
-		return nil, fmt.Errorf("gagal parsing hasil Gemini: %w", err)
+		log.Printf("ERROR PARSING JSON DARI GEMINI: %v", err)
+		log.Printf("JSON MENTAH: %s", quizJSON)
+		return nil, fmt.Errorf("gagal parsing hasil Gemini (mungkin format JSON salah): %w", err)
 	}
 
 	return &dto.GenerateQuizResponse{
