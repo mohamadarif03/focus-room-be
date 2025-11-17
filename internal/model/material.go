@@ -1,8 +1,6 @@
 package model
 
-import (
-	"time"
-)
+import "time"
 
 type Material struct {
 	ID            uint   `gorm:"primaryKey"`
@@ -11,7 +9,8 @@ type Material struct {
 	SourceType    string `gorm:"size:50;not null"`
 	Source        string `gorm:"size:255"`
 	ExtractedText string `gorm:"type:text"`
+	PackageID     *uint  `gorm:"null"`
 	CreatedAt     time.Time
-
-	User User `gorm:"foreignKey:UserID"`
+	User          User `gorm:"foreignKey:UserID"`
+	Package Package `gorm:"foreignKey:PackageID"`
 }

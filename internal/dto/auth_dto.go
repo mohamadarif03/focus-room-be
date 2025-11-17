@@ -1,11 +1,11 @@
 package dto
 
 type RegisterRequest struct {
-	Username        string `json:"username" binding:"required"`
-	Email           string `json:"email" binding:"required,email"`
-	Password        string `json:"password" binding:"required,min=6"`
-	PasswordConfirm string `json:"password_confirm" binding:"required"`
-	Role            string `json:"role" binding:"required,oneof=siswa pembimbing"`
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+	PasswordConfirm string `json:"password_confirm" binding:"required,min=6"`
+	Role     string `json:"role" binding:"required,oneof=siswa pembimbing"`
 }
 
 type AuthResponse struct {

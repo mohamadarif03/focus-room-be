@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
@@ -14,18 +13,13 @@ import (
 )
 
 func main() {
-	_, isRunningOnRailway := os.LookupEnv("RAILWAY_ENVIRONMENT")
-
-	if !isRunningOnRailway {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Gagal memuat file .env")
-		}
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Gagal memuat file .env")
 	}
 
 	database.InitDB()
-	log.Println("Melakukan AutoMigrate untuk User, Task, dan Material...")
-	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{})
+	log.Println("Melakukan AutoMigrate untuk User, Task, Package dan Material...")
+	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 	database.Seed()
 
 	geminiAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
@@ -40,13 +34,14 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
 	matRepo := repository.NewMaterialRepository(db)
+	packageRepo := repository.NewPackageRepository(db)
 
 	userService := service.NewUserService(userRepo, taskRepo)
 
 	authService := service.NewAuthService(userRepo)
 
 	taskService := service.NewTaskService(taskRepo, userRepo)
-
+	packageService := service.NewPackageService(packageRepo)
 	aiService, err := service.NewAIService(geminiAPIKey, matRepo)
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
@@ -57,6 +52,7 @@ func main() {
 		authService,
 		taskService,
 		aiService,
+		packageService,
 	)
 
 	log.Println("Server berjalan di port 8080...")
