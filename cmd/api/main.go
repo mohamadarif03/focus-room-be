@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Gagal memuat file .env")
+		log.Print("Gagal memuat file .env")
 	}
 
 	database.InitDB()
