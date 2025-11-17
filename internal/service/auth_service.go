@@ -31,6 +31,9 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.AuthResponse, erro
 	if err != nil {
 		return nil, errors.New("failed to hash password")
 	}
+	if req.Password != req.PasswordConfirm {
+		return nil, errors.New("password and password_confirm doesn't match")
+	}
 
 	newUser := model.User{
 		Username:     req.Username,
