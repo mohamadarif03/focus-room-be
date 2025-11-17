@@ -42,7 +42,7 @@ func main() {
 
 	taskService := service.NewTaskService(taskRepo, userRepo)
 	packageService := service.NewPackageService(packageRepo)
-	aiService, err := service.NewAIService(geminiAPIKey, matRepo)
+	aiService, err := service.NewAIService(geminiAPIKey, matRepo, packageRepo)
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
 	}
