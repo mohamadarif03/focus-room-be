@@ -18,48 +18,110 @@ type TaskService struct {
 }
 
 func NewTaskService(taskRepo *repository.TaskRepository, userRepo *repository.UserRepository) *TaskService {
-	return &TaskService{taskRepo: taskRepo, userRepo: userRepo}
+	return &TaskService{
+		taskRepo: taskRepo,
+		userRepo: userRepo,
+	}
+}
+
+// taskToResponse adalah helper untuk konversi model Task ke DTO TaskResponse
+func taskToResponse(task *model.Task) dto.TaskResponse {
+	return dto.TaskResponse{
+		ID:        task.ID,
+		Title:     task.Title,
+		Context:   task.Context,
+		Priority:  task.Priority,
+		TaskDate:  task.TaskDate,
+		Completed: task.Completed,
+		UserID:    task.UserID,
+	}
 }
 
 func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string) (*dto.TaskResponse, error) {
+	// 1. Konversi UserID
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
 		return nil, errors.New("user ID tidak valid")
 	}
 
-	taskDate, err := time.Parse("2006-01-02", req.TaskDate)
+	// 2. Parsing string ISO 8601 (RFC3339)
+	taskDate, err := time.Parse(time.RFC3339, req.TaskDate)
 	if err != nil {
-		return nil, errors.New("format tanggal tidak valid, gunakan YYYY-MM-DD")
+		return nil, errors.New("format tanggal tidak valid, gunakan format ISO 8601 (RFC3339)")
 	}
 
+	// 3. Buat model Task baru
 	newTask := model.Task{
-		Title:       req.Title,
-		TaskDate:    taskDate,
-		IsCompleted: false,
-		UserID:      uint(userID),
+		Title:     req.Title,
+		Context:   req.Context,
+		TaskDate:  taskDate,
+		Priority:  req.Priority,
+		Completed: false, // Task baru selalu 'false'
+		UserID:    uint(userID),
 	}
 
+	// 4. Simpan ke database
 	createdTask, err := s.taskRepo.CreateTask(&newTask)
 	if err != nil {
 		return nil, errors.New("gagal menyimpan task ke database")
 	}
 
-	response := &dto.TaskResponse{
-		ID:          createdTask.ID,
-		Title:       createdTask.Title,
-		IsCompleted: createdTask.IsCompleted,
-		TaskDate:    createdTask.TaskDate,
-		UserID:      createdTask.UserID,
+	// 5. Kembalikan sebagai DTO Response
+	response := taskToResponse(createdTask)
+	return &response, nil
+}
+
+func (s *TaskService) GetTasks(userIDString string, dateQuery string) ([]dto.TaskResponse, error) {
+	// 1. Konversi UserID
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("user ID tidak valid")
 	}
 
-	return response, nil
+	var targetDate time.Time
+
+	// 2. Logika Tanggal
+	if dateQuery == "" {
+		// Jika query ?date= kosong, pakai tanggal hari ini
+		now := time.Now()
+		targetDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	} else {
+		// Jika query ?date= ada, parse tanggal YYYY-MM-DD
+		parsedDate, err := time.Parse("2006-01-02", dateQuery)
+		if err != nil {
+			return nil, errors.New("format tanggal tidak valid, gunakan YYYY-MM-DD")
+		}
+		targetDate = parsedDate
+	}
+
+	// 3. Panggil Repository
+	// Repositori (FindTasksByUserIDAndDate) sudah di-update untuk
+	// mencari berdasarkan rentang 24 jam (>= date AND < date+24jam)
+	tasks, err := s.taskRepo.FindTasksByUserIDAndDate(uint(userID), targetDate)
+	if err != nil {
+		return nil, errors.New("gagal mengambil data task")
+	}
+
+	// 4. Konversi Model ke DTO
+	var taskResponses []dto.TaskResponse
+	for _, task := range tasks {
+		taskResponses = append(taskResponses, taskToResponse(&task))
+	}
+
+	return taskResponses, nil
 }
 
 func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req dto.UpdateTaskRequest) (*dto.TaskResponse, error) {
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
-	taskID, _ := strconv.ParseUint(taskIDString, 10, 32)
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("user ID tidak valid")
+	}
+	taskID, err := strconv.ParseUint(taskIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("task ID tidak valid")
+	}
 
-	task, err := s.taskRepo.FindByID(uint(taskID))
+	task, err := s.taskRepo.FindTaskByID(uint(taskID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("task tidak ditemukan")
@@ -72,13 +134,16 @@ func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req d
 	}
 
 	task.Title = req.Title
-	task.IsCompleted = req.IsCompleted
-	updatedTask, err := s.taskRepo.Update(task)
+	task.Context = req.Context
+	task.Priority = req.Priority
+	task.Completed = req.Completed
+
+	updatedTask, err := s.taskRepo.UpdateTask(task)
 	if err != nil {
 		return nil, errors.New("gagal mengupdate task")
 	}
 
-	if req.IsCompleted {
+	if req.Completed {
 		go s.checkRealtimeStreak(uint(userID), task.TaskDate)
 	}
 
@@ -120,7 +185,7 @@ func (s *TaskService) checkRealtimeStreak(userID uint, taskDate time.Time) {
 	totalTasks := len(tasksToday)
 	completedTasks := 0
 	for _, t := range tasksToday {
-		if t.IsCompleted {
+		if t.Completed {
 			completedTasks++
 		}
 	}
@@ -148,7 +213,7 @@ func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error
 		return errors.New("task ID tidak valid")
 	}
 
-	task, err := s.taskRepo.FindByID(uint(taskID))
+	task, err := s.taskRepo.FindTaskByID(uint(taskID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("task tidak ditemukan")
@@ -157,7 +222,7 @@ func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error
 	}
 
 	if task.UserID != uint(userID) {
-		return errors.New("akses ditolak: anda bukan pemilik task ini") // 403
+		return errors.New("akses ditolak: anda bukan pemilik task ini")
 	}
 
 	err = s.taskRepo.Delete(uint(taskID))
@@ -166,46 +231,4 @@ func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error
 	}
 
 	return nil
-}
-
-func (s *TaskService) GetTasks(userIDString string, dateQuery string) ([]dto.TaskResponse, error) {
-	userID, err := strconv.ParseUint(userIDString, 10, 32)
-	if err != nil {
-		return nil, errors.New("user ID tidak valid")
-	}
-
-	var targetDate time.Time
-
-	if dateQuery == "" {
-		now := time.Now()
-		targetDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	} else {
-		parsedDate, err := time.Parse("2006-01-02", dateQuery)
-		if err != nil {
-			return nil, errors.New("format tanggal tidak valid, gunakan YYYY-MM-DD")
-		}
-		targetDate = parsedDate
-	}
-
-	tasks, err := s.taskRepo.FindTasksByUserIDAndDate(uint(userID), targetDate)
-	if err != nil {
-		return nil, errors.New("gagal mengambil data task")
-	}
-
-	var taskResponses []dto.TaskResponse
-	for _, task := range tasks {
-		taskResponses = append(taskResponses, taskToResponse(&task))
-	}
-
-	return taskResponses, nil
-}
-
-func taskToResponse(task *model.Task) dto.TaskResponse {
-	return dto.TaskResponse{
-		ID:          task.ID,
-		Title:       task.Title,
-		IsCompleted: task.IsCompleted,
-		TaskDate:    task.TaskDate,
-		UserID:      task.UserID,
-	}
 }

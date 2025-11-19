@@ -62,7 +62,6 @@ func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error)
 	return &finalID, nil
 }
 
-// ------------------------------------
 
 func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)

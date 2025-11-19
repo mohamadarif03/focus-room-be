@@ -135,7 +135,7 @@ func (s *UserService) CheckAndUpdateStreak(userIDString string) (*model.User, er
 	totalTasks := len(tasks)
 	completedTasks := 0
 	for _, task := range tasks {
-		if task.IsCompleted {
+		if task.Completed {
 			completedTasks++
 		}
 	}
