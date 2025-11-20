@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"log"
 	"strconv"
 	"time"
 
@@ -126,64 +125,8 @@ func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req d
 		return nil, errors.New("gagal mengupdate task")
 	}
 
-	if req.Completed {
-		go s.checkRealtimeStreak(uint(userID), task.TaskDate)
-	}
-
 	response := taskToResponse(updatedTask)
 	return &response, nil
-}
-
-func (s *TaskService) checkRealtimeStreak(userID uint, taskDate time.Time) {
-	log.Printf("[Streak H-0] User %d menyelesaikan task. Memeriksa...", userID)
-
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-
-	taskDay := time.Date(taskDate.Year(), taskDate.Month(), taskDate.Day(), 0, 0, 0, 0, time.Local)
-	if !taskDay.Equal(today) {
-		log.Printf("[Streak H-0] User %d menyelesaikan task lama. Streak H-0 diabaikan.", userID)
-		return
-	}
-
-	user, err := s.userRepo.FindByID(userID)
-	if err != nil {
-		return
-	}
-
-	if user.LastStreakAwardedDate != nil {
-		lastAward := *user.LastStreakAwardedDate
-		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
-		if lastAwardDate.Equal(today) {
-			log.Printf("[Streak H-0] User %d sudah dapat imbalan hari ini. Diabaikan.", userID)
-			return
-		}
-	}
-
-	tasksToday, err := s.taskRepo.FindTasksByUserIDAndDate(userID, today)
-	if err != nil {
-		return
-	}
-
-	totalTasks := len(tasksToday)
-	completedTasks := 0
-	for _, t := range tasksToday {
-		if t.Completed {
-			completedTasks++
-		}
-	}
-
-	if totalTasks > 0 && totalTasks == completedTasks {
-		user.CurrentStreak += 1
-		user.LastStreakAwardedDate = &now
-
-		_, err := s.userRepo.Update(user)
-		if err == nil {
-			log.Printf("[Streak H-0] SUKSES! User %d menyelesaikan semua task H-0. Streak naik ke %d.", userID, user.CurrentStreak)
-		}
-	} else {
-		log.Printf("[Streak H-0] User %d belum selesai. (Total: %d, Selesai: %d)", userID, totalTasks, completedTasks)
-	}
 }
 
 func (s *TaskService) DeleteTask(taskIDString string, userIDString string) error {

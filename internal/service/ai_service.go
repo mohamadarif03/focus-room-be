@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/mohamadarif03/focus-room-be/internal/dto"
@@ -22,9 +23,15 @@ type AIService struct {
 	geminiModel *genai.GenerativeModel
 	matRepo     *repository.MaterialRepository
 	pkgRepo     *repository.PackageRepository
+	userRepo    *repository.UserRepository 
 }
 
-func NewAIService(apiKey string, matRepo *repository.MaterialRepository, pkgRepo *repository.PackageRepository) (*AIService, error) {
+func NewAIService(
+	apiKey string,
+	matRepo *repository.MaterialRepository,
+	pkgRepo *repository.PackageRepository,
+	userRepo *repository.UserRepository,
+) (*AIService, error) {
 	if apiKey == "" {
 		return nil, errors.New("GEMINI_API_KEY tidak ditemukan")
 	}
@@ -36,32 +43,32 @@ func NewAIService(apiKey string, matRepo *repository.MaterialRepository, pkgRepo
 	}
 
 	model := client.GenerativeModel("gemini-2.5-flash")
+	model.ResponseMIMEType = "application/json"
+
 	return &AIService{
 		geminiModel: model,
 		matRepo:     matRepo,
 		pkgRepo:     pkgRepo,
+		userRepo:    userRepo,
 	}, nil
 }
 
+// --- Helper Validasi Package ---
 func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error) {
 	if pkgIDStr == "" {
 		return nil, nil
 	}
-
 	pkgID, err := strconv.ParseUint(pkgIDStr, 10, 32)
 	if err != nil {
 		return nil, errors.New("package_id tidak valid")
 	}
-
 	_, err = s.pkgRepo.FindByID(uint(pkgID), userID)
 	if err != nil {
 		return nil, errors.New("package tidak ditemukan atau anda bukan pemiliknya")
 	}
-
 	finalID := uint(pkgID)
 	return &finalID, nil
 }
-
 
 func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
@@ -157,7 +164,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	prompt := fmt.Sprintf("Jelaskan ulang isi materi berikut secara jelas, mendalam, dan terstruktur, seperti seorang dosen profesional yang menjelaskan konsep di kelas, namun tanpa sapaan pembuka atau penutup kelas (misalnya: “Selamat pagi mahasiswa”, “Apakah ada pertanyaan?”, dan sejenisnya). Saat menjelaskan ulang: Gunakan bahasa yang natural, komunikatif, dan logis, bukan formal kaku. Fokus untuk memperjelas isi materi, bukan sekadar merangkum. Jelaskan konsep dan ide utama dengan contoh nyata atau analogi jika perlu. Jika ada istilah sulit, jelaskan maknanya terlebih dahulu sebelum lanjut. Gunakan gaya penjelasan yang mengalir seperti narasi dosen yang fokus menjelaskan isi (tanpa salam, tanpa tanya jawab). Tutup dengan ringkasan inti dan kesimpulan, bukan kalimat interaktif seperti “ada pertanyaan?” atau “sampai jumpa”. Output yang diharapkan: Penjelasan ulang yang runtut, detail, dan mudah dipahami Gaya profesional namun tetap natural Tidak ada bagian sapaan, humor, atau tanya-jawab interaktif. Materi:\n\n%s", material.ExtractedText)
+	prompt := fmt.Sprintf("Jelaskan ulang isi materi berikut secara jelas... Materi:\n\n%s", material.ExtractedText)
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
@@ -189,79 +196,12 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	prompt := fmt.Sprintf(
-
-		`Buatkan %d soal latihan berdasarkan materi berikut.
-
-
-
-Hasilkan dalam format JSON array yang valid dan rapi.
-
-Setiap objek di dalam array harus memiliki struktur berikut:
-
-
-
-{
-
-  "id": number,
-
-  "pertanyaan": "string",
-
-  "pilihan": [
-
-    {"A": "string"},
-
-    {"B": "string"},
-
-    {"C": "string"},
-
-    {"D": "string"}
-
-  ],
-
-  "jawaban_benar": "string" // huruf A, B, C, atau D saja
-
-}
-
-
-
-Instruksi penting:
-
-1. Soal harus relevan langsung dengan isi materi dan menguji pemahaman konsep (bukan hafalan).
-
-2. Setiap opsi jawaban harus masuk akal dan proporsional, tidak terlalu mudah ditebak.
-
-3. Hindari pola yang membuat jawaban benar selalu mudah dikenali, seperti:
-
-   - jawaban paling panjang atau paling detail,
-
-   - posisi jawaban benar selalu sama.
-
-4. Gunakan bahasa yang natural dan jelas, seperti soal buatan manusia.
-
-5. Variasikan tingkat kesulitan: sebagian soal dasar, sebagian penerapan atau analisis.
-
-6. Jangan tambahkan penjelasan, pembuka, atau teks apa pun di luar format JSON.
-
-7. Pastikan output adalah JSON yang valid dan bisa langsung di-parse tanpa error.
-
-8. Nilai "jawaban_benar" hanya berisi huruf A, B, C, atau D — bukan teks jawaban.
-
-9. Gunakan bahasa sesuai dengan bahasa yang ada didalam materi
-
-
-
-Materi:
-
-%s`,
-
-		req.QuestionCount,
-
-		material.ExtractedText,
-	)
+	prompt := fmt.Sprintf(`
+		Buatkan %d soal latihan berdasarkan materi berikut.
+		Output harus JSON Array.
+		Materi: %s`, req.QuestionCount, material.ExtractedText)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
-
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
 	}
@@ -279,19 +219,142 @@ Materi:
 	quizJSON = strings.TrimPrefix(quizJSON, "```json")
 	quizJSON = strings.TrimSuffix(quizJSON, "```")
 
-	if quizJSON == "" {
-		return nil, errors.New("Gemini tidak memberikan kuis")
-	}
-
 	var questions []dto.QuizQuestion
 	if err := json.Unmarshal([]byte(quizJSON), &questions); err != nil {
-		log.Printf("ERROR PARSING JSON DARI GEMINI: %v", err)
-		log.Printf("JSON MENTAH: %s", quizJSON)
-		return nil, fmt.Errorf("gagal parsing hasil Gemini (mungkin format JSON salah): %w", err)
+		return nil, fmt.Errorf("gagal parsing hasil Gemini: %w", err)
 	}
 
 	return &dto.GenerateQuizResponse{
 		MaterialID: req.MaterialID,
 		Questions:  questions,
 	}, nil
+}
+
+
+func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("user ID tidak valid")
+	}
+
+	user, err := s.userRepo.FindByID(uint(userID))
+	if err != nil {
+		return nil, errors.New("user tidak ditemukan")
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+	if user.LastStreakAwardedDate != nil {
+		lastAward := *user.LastStreakAwardedDate
+		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
+
+		if lastAwardDate.Equal(today) {
+			return &dto.DailyQuizResponse{
+				Questions: nil,
+				IsDone:    true,
+			}, nil
+		}
+	}
+
+	count, err := s.matRepo.CountByUserID(uint(userID))
+	if count == 0 {
+		return nil, errors.New("anda belum mengupload materi apapun")
+	}
+
+	materials, err := s.matRepo.FindRandomByUserID(uint(userID), 3)
+	if err != nil {
+		return nil, errors.New("gagal mengambil materi acak")
+	}
+
+	var combinedText strings.Builder
+	for _, m := range materials {
+		combinedText.WriteString(m.ExtractedText)
+		combinedText.WriteString("\n\n")
+	}
+	finalText := combinedText.String()
+	if len(finalText) > 12000 {
+		finalText = finalText[:12000]
+	}
+
+	prompt := fmt.Sprintf(`
+		Buatkan 10 soal pilihan ganda berdasarkan teks gabungan ini.
+		
+		Format Output HARUS JSON ARRAY (Strict JSON):
+		[
+			{
+				"id": 1,
+				"pertanyaan": "...",
+				"pilihan": [
+					{"A": "opsi A"}, {"B": "opsi B"}, {"C": "opsi C"}, {"D": "opsi D"}
+				],
+				"jawaban_benar": "A"
+			}
+		]
+
+		Pastikan JSON valid tanpa markdown tambahan.
+		Materi: %s
+	`, finalText)
+
+	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return nil, fmt.Errorf("gagal menghubungi AI: %w", err)
+	}
+
+	var quizJSON string
+	if len(resp.Candidates) > 0 {
+		for _, part := range resp.Candidates[0].Content.Parts {
+			if txt, ok := part.(genai.Text); ok {
+				quizJSON += string(txt)
+			}
+		}
+	}
+
+	quizJSON = strings.TrimSpace(quizJSON)
+	quizJSON = strings.TrimPrefix(quizJSON, "```json")
+	quizJSON = strings.TrimSuffix(quizJSON, "```")
+
+	var checkJSON []map[string]interface{}
+	if err := json.Unmarshal([]byte(quizJSON), &checkJSON); err != nil {
+		return nil, errors.New("AI menghasilkan format soal yang tidak valid, silakan coba lagi")
+	}
+
+	return &dto.DailyQuizResponse{
+		Questions: checkJSON,
+		IsDone:    false,
+	}, nil
+}
+
+func (s *AIService) ClaimDailyStreak(userIDString string) error {
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return errors.New("user ID tidak valid")
+	}
+
+	user, err := s.userRepo.FindByID(uint(userID))
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+	if user.LastStreakAwardedDate != nil {
+		lastAward := *user.LastStreakAwardedDate
+		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
+
+		if lastAwardDate.Equal(today) {
+			return errors.New("anda sudah mengklaim streak hari ini")
+		}
+	}
+
+	user.CurrentStreak += 1
+	user.LastStreakAwardedDate = &now
+
+	if _, err := s.userRepo.Update(user); err != nil {
+		return errors.New("gagal menambahkan poin streak")
+	}
+
+	log.Printf("STREAK UP! User %d - Total Streak: %d", userID, user.CurrentStreak)
+	return nil
 }

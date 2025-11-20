@@ -19,5 +19,5 @@ type User struct {
 	UpdatedAt             time.Time  `json:"updated_at"`
 
 	Tasks []Task `gorm:"foreignKey:UserID" json:"tasks"`
-	Packages []Task `gorm:"foreignKey:UserID" json:"packages"`
+	Packages []Package `gorm:"foreignKey:UserID" json:"packages"`
 }

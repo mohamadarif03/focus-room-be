@@ -23,3 +23,15 @@ func (r *MaterialRepository) FindByID(id, userID uint) (*model.Material, error) 
 	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&material).Error
 	return &material, err
 }
+
+func (r *MaterialRepository) FindRandomByUserID(userID uint, limit int) ([]model.Material, error) {
+	var materials []model.Material
+	err := r.db.Where("user_id = ?", userID).Order("RANDOM()").Limit(limit).Find(&materials).Error
+	return materials, err
+}
+
+func (r *MaterialRepository) CountByUserID(userID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.Material{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}

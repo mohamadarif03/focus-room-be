@@ -18,11 +18,11 @@ func main() {
 	}
 
 	database.InitDB()
-	log.Println("Melakukan AutoMigrate untuk User, Task, Package dan Material...")
+	log.Println("Melakukan AutoMigrate...")
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 	database.Seed()
 
-	geminiAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
+	geminiAPIKey := "AIzaSyABmC0orVoBpegnBj6e4f9XL5_kdyYn2vU"
 	youtubeAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
 
 	if err := utils.InitYouTubeService(youtubeAPIKey); err != nil {
@@ -37,12 +37,11 @@ func main() {
 	packageRepo := repository.NewPackageRepository(db)
 
 	userService := service.NewUserService(userRepo, taskRepo)
-
 	authService := service.NewAuthService(userRepo)
-
 	taskService := service.NewTaskService(taskRepo, userRepo)
 	packageService := service.NewPackageService(packageRepo)
-	aiService, err := service.NewAIService(geminiAPIKey, matRepo, packageRepo)
+
+	aiService, err := service.NewAIService(geminiAPIKey, matRepo, packageRepo, userRepo)
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
 	}

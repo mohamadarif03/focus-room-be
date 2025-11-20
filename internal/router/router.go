@@ -70,6 +70,12 @@ func SetupRouter(
 				aiGroup.POST("/quiz", aiHandler.GenerateQuiz)
 			}
 
+			dailyQuizGroup := studentGroup.Group("/daily-quiz")
+			{
+				dailyQuizGroup.GET("", aiHandler.GetDailyQuiz)
+				dailyQuizGroup.POST("/claim", aiHandler.ClaimDailyStreak) 
+			}
+
 			streakGroup := studentGroup.Group("/streaks")
 			{
 				streakGroup.POST("/check", userHandler.CheckAndUpdateStreak)

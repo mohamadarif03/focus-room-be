@@ -40,3 +40,12 @@ type GenerateQuizResponse struct {
 	MaterialID uint           `json:"material_id"`
 	Questions  []QuizQuestion `json:"questions"`
 }
+
+type DailyQuizResponse struct {
+	Questions interface{} `json:"questions"`
+	IsDone    bool        `json:"is_done"`
+}
+
+type ClaimQuizRequest struct {
+	Score int `json:"score" binding:"required,min=10"`
+}
