@@ -18,6 +18,10 @@ func (r *MaterialRepository) Save(material *model.Material) (*model.Material, er
 	return material, err
 }
 
+func (r *MaterialRepository) Update(material *model.Material) error {
+	return r.db.Save(material).Error
+}
+
 func (r *MaterialRepository) FindByID(id, userID uint) (*model.Material, error) {
 	var material model.Material
 	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&material).Error

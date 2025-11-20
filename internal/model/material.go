@@ -9,8 +9,9 @@ type Material struct {
 	SourceType    string `gorm:"size:50;not null"`
 	Source        string `gorm:"size:255"`
 	ExtractedText string `gorm:"type:text"`
+	Summary       string `gorm:"type:text" json:"summary"`
 	PackageID     *uint  `gorm:"null"`
 	CreatedAt     time.Time
-	User          User `gorm:"foreignKey:UserID"`
-	Package Package `gorm:"foreignKey:PackageID"`
+	User          User    `gorm:"foreignKey:UserID"`
+	Package       Package `gorm:"foreignKey:PackageID"`
 }

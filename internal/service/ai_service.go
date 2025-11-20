@@ -23,7 +23,7 @@ type AIService struct {
 	geminiModel *genai.GenerativeModel
 	matRepo     *repository.MaterialRepository
 	pkgRepo     *repository.PackageRepository
-	userRepo    *repository.UserRepository 
+	userRepo    *repository.UserRepository
 }
 
 func NewAIService(
@@ -164,7 +164,19 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	prompt := fmt.Sprintf("Jelaskan ulang isi materi berikut secara jelas... Materi:\n\n%s", material.ExtractedText)
+	if material.Summary != "" {
+		log.Printf("Summary materi ID %d diambil dari database (Cache Hit)", material.ID)
+		return &dto.GenerateSummaryResponse{
+			MaterialID: material.ID,
+			Summary:    material.Summary,
+		}, nil
+	}
+
+	log.Printf("Summary materi ID %d belum ada. Meminta Gemini...", material.ID)
+
+	prompt := fmt.Sprintf("Jelaskan ulang isi materi berikut secara jelas, mendalam, dan terstruktur, seperti seorang dosen profesional... Materi:\n\n%s", material.ExtractedText)
+
+	s.geminiModel.ResponseMIMEType = "text/plain"
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
@@ -182,9 +194,73 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		return nil, errors.New("Gemini tidak memberikan rangkuman")
 	}
 
+	material.Summary = summary
+	if err := s.matRepo.Update(material); err != nil {
+		log.Printf("Gagal menyimpan summary ke DB: %v", err)
+	}
+
 	return &dto.GenerateSummaryResponse{
-		MaterialID: req.MaterialID,
+		MaterialID: material.ID,
 		Summary:    summary,
+	}, nil
+}
+
+func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlashcardRequest, userIDString string) (*dto.GenerateFlashcardResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	material, err := s.matRepo.FindByID(req.MaterialID, uint(userID))
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
+	}
+
+	prompt := fmt.Sprintf(`
+		Buatkan flashcard (kartu belajar) berdasarkan materi berikut.
+		Flashcard terdiri dari "front" (pertanyaan ringkas atau istilah) dan "back" (jawaban atau definisi penjelasan).
+		
+		Format Output HARUS JSON ARRAY MURNI:
+		[
+			{"front": "Apa itu X?", "back": "X adalah..."},
+			{"front": "Istilah Y", "back": "Definisi Y..."}
+		]
+
+		Instruksi:
+		1. Gunakan bahasa Indonesia yang jelas.
+		2. "front" harus singkat dan memancing ingatan.
+		3. "back" harus padat dan menjelaskan inti konsep.
+		4. Jangan tambahkan markdown code block.
+
+		Tambahkan untuk jumlah di flash cardnya sesuai isi materi saja, jika materi memungkinkan membuat 10 flash card buatkan 10 kalau cocoknya buat 5 ya kasih 5 jadi sesuaikan agar semua yang ada di materi masuk ke flash card. 
+		Materi:
+		%s
+	`, material.ExtractedText)
+
+	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
+	}
+
+	var jsonString string
+	if len(resp.Candidates) > 0 {
+		for _, part := range resp.Candidates[0].Content.Parts {
+			if txt, ok := part.(genai.Text); ok {
+				jsonString += string(txt)
+			}
+		}
+	}
+
+	jsonString = strings.TrimSpace(jsonString)
+	jsonString = strings.TrimPrefix(jsonString, "```json")
+	jsonString = strings.TrimSuffix(jsonString, "```")
+
+	var cards []dto.FlashcardItem
+	if err := json.Unmarshal([]byte(jsonString), &cards); err != nil {
+		log.Printf("Error parsing flashcards: %v | Raw: %s", err, jsonString)
+		return nil, errors.New("gagal memproses hasil flashcard dari AI")
+	}
+
+	return &dto.GenerateFlashcardResponse{
+		MaterialID: req.MaterialID,
+		Flashcards: cards,
 	}, nil
 }
 
@@ -229,7 +305,6 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 		Questions:  questions,
 	}, nil
 }
-
 
 func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)

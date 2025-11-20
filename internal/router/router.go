@@ -1,11 +1,11 @@
 package router
 
 import (
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/mohamadarif03/focus-room-be/internal/handler"
 	"github.com/mohamadarif03/focus-room-be/internal/middleware"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
-
-	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter(
@@ -17,6 +17,16 @@ func SetupRouter(
 ) *gin.Engine {
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:5173",
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authService)
@@ -68,12 +78,13 @@ func SetupRouter(
 			{
 				aiGroup.POST("/summarize", aiHandler.GenerateSummary)
 				aiGroup.POST("/quiz", aiHandler.GenerateQuiz)
+				aiGroup.POST("/flashcards", aiHandler.GenerateFlashcards)
 			}
 
 			dailyQuizGroup := studentGroup.Group("/daily-quiz")
 			{
 				dailyQuizGroup.GET("", aiHandler.GetDailyQuiz)
-				dailyQuizGroup.POST("/claim", aiHandler.ClaimDailyStreak) 
+				dailyQuizGroup.POST("/claim", aiHandler.ClaimDailyStreak)
 			}
 
 			streakGroup := studentGroup.Group("/streaks")

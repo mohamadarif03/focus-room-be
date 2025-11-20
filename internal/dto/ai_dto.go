@@ -5,6 +5,7 @@ type MaterialResponse struct {
 	Title      string `json:"title"`
 	SourceType string `json:"source_type"`
 	Source     string `json:"source"`
+	Summary    string `json:"summary"`
 }
 
 type IngestYouTubeRequest struct {
@@ -46,6 +47,19 @@ type DailyQuizResponse struct {
 	IsDone    bool        `json:"is_done"`
 }
 
+type GenerateFlashcardRequest struct {
+	MaterialID uint `json:"material_id" binding:"required"`
+}
 type ClaimQuizRequest struct {
 	Score int `json:"score" binding:"required,min=10"`
+}
+
+type FlashcardItem struct {
+	Front string `json:"front"`
+	Back  string `json:"back"`
+}
+
+type GenerateFlashcardResponse struct {
+	MaterialID uint            `json:"material_id"`
+	Flashcards []FlashcardItem `json:"flashcards"`
 }

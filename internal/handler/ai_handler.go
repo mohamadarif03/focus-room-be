@@ -103,6 +103,23 @@ func (h *AIHandler) GetDailyQuiz(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil mengambil data quiz", http.StatusOK)
 }
 
+func (h *AIHandler) GenerateFlashcards(c *gin.Context) {
+	var req dto.GenerateFlashcardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, "Format data salah atau count tidak valid (min 1, max 20)", http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	resp, err := h.service.GenerateFlashcards(c.Request.Context(), req, userID.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Flashcards berhasil dibuat", http.StatusOK)
+}
+
 func (h *AIHandler) ClaimDailyStreak(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
