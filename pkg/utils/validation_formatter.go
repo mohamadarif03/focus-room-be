@@ -23,7 +23,7 @@ func FormatValidationError(err error) []SingleErrorResponse {
 
 	for _, fieldErr := range validationErrors {
 		field := strings.ToLower(fieldErr.Field())
-		
+
 		errors = append(errors, SingleErrorResponse{
 			Field:   field,
 			Message: formatMessage(field, fieldErr.Tag(), fieldErr.Param()),
@@ -36,14 +36,14 @@ func FormatValidationError(err error) []SingleErrorResponse {
 func formatMessage(field, tag, param string) string {
 	switch tag {
 	case "required":
-		return fmt.Sprintf("Kolom %s tidak boleh kosong.", field)
+		return fmt.Sprintf("The %s field is required.", field)
 	case "email":
-		return fmt.Sprintf("Kolom %s harus berupa alamat email yang valid.", field)
+		return fmt.Sprintf("The %s field must be a valid email address.", field)
 	case "min":
-		return fmt.Sprintf("Kolom %s harus memiliki minimal %s karakter.", field, param)
+		return fmt.Sprintf("The %s field must have at least %s characters.", field, param)
 	case "oneof":
-		return fmt.Sprintf("Kolom %s harus salah satu dari: %s.", field, param)
+		return fmt.Sprintf("The %s field must be one of: %s.", field, param)
 	default:
-		return fmt.Sprintf("Kolom %s tidak valid (aturan: %s).", field, tag)
+		return fmt.Sprintf("The %s field is invalid (rule: %s).", field, tag)
 	}
 }
