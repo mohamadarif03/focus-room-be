@@ -38,6 +38,27 @@ func (r *TaskRepository) FindTasksByUserIDAndDate(userID uint, date time.Time) (
 	return tasks, nil
 }
 
+func (r *TaskRepository) FindAllTasks(userID uint, filterDate *time.Time, filterPriority string) ([]model.Task, error) {
+	var tasks []model.Task
+	query := r.db.Where("user_id = ?", userID)
+
+	if filterDate != nil {
+		startDate := *filterDate
+		endDate := startDate.Add(24 * time.Hour)
+		query = query.Where("task_date >= ? AND task_date < ?", startDate, endDate)
+	}
+
+	if filterPriority != "" {
+		query = query.Where("priority = ?", filterPriority)
+	}
+
+	err := query.Order("task_date asc").Find(&tasks).Error
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
 func (r *TaskRepository) FindTaskByID(taskID uint) (*model.Task, error) {
 	var task model.Task
 	err := r.db.Where("id = ?", taskID).First(&task).Error

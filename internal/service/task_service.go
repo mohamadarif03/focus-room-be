@@ -24,7 +24,6 @@ func NewTaskService(taskRepo *repository.TaskRepository, userRepo *repository.Us
 	}
 }
 
-// taskToResponse adalah helper untuk konversi model Task ke DTO TaskResponse
 func taskToResponse(task *model.Task) dto.TaskResponse {
 	return dto.TaskResponse{
 		ID:        task.ID,
@@ -38,71 +37,55 @@ func taskToResponse(task *model.Task) dto.TaskResponse {
 }
 
 func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string) (*dto.TaskResponse, error) {
-	// 1. Konversi UserID
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
 		return nil, errors.New("user ID tidak valid")
 	}
 
-	// 2. Parsing string ISO 8601 (RFC3339)
 	taskDate, err := time.Parse(time.RFC3339, req.TaskDate)
 	if err != nil {
 		return nil, errors.New("format tanggal tidak valid, gunakan format ISO 8601 (RFC3339)")
 	}
 
-	// 3. Buat model Task baru
 	newTask := model.Task{
 		Title:     req.Title,
 		Context:   req.Context,
 		TaskDate:  taskDate,
 		Priority:  req.Priority,
-		Completed: false, // Task baru selalu 'false'
+		Completed: false,
 		UserID:    uint(userID),
 	}
 
-	// 4. Simpan ke database
 	createdTask, err := s.taskRepo.CreateTask(&newTask)
 	if err != nil {
 		return nil, errors.New("gagal menyimpan task ke database")
 	}
 
-	// 5. Kembalikan sebagai DTO Response
 	response := taskToResponse(createdTask)
 	return &response, nil
 }
 
-func (s *TaskService) GetTasks(userIDString string, dateQuery string) ([]dto.TaskResponse, error) {
-	// 1. Konversi UserID
+func (s *TaskService) GetTasks(userIDString, dateQuery, priorityQuery string) ([]dto.TaskResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
 		return nil, errors.New("user ID tidak valid")
 	}
 
-	var targetDate time.Time
+	var filterDate *time.Time
 
-	// 2. Logika Tanggal
-	if dateQuery == "" {
-		// Jika query ?date= kosong, pakai tanggal hari ini
-		now := time.Now()
-		targetDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-	} else {
-		// Jika query ?date= ada, parse tanggal YYYY-MM-DD
+	if dateQuery != "" {
 		parsedDate, err := time.Parse("2006-01-02", dateQuery)
 		if err != nil {
 			return nil, errors.New("format tanggal tidak valid, gunakan YYYY-MM-DD")
 		}
-		targetDate = parsedDate
+		filterDate = &parsedDate
 	}
 
-	// 3. Panggil Repository
-	// Repositori (FindTasksByUserIDAndDate) sudah di-update untuk
-	// mencari berdasarkan rentang 24 jam (>= date AND < date+24jam)
-	tasks, err := s.taskRepo.FindTasksByUserIDAndDate(uint(userID), targetDate)
+	tasks, err := s.taskRepo.FindAllTasks(uint(userID), filterDate, priorityQuery)
 	if err != nil {
 		return nil, errors.New("gagal mengambil data task")
 	}
 
-	// 4. Konversi Model ke DTO
 	var taskResponses []dto.TaskResponse
 	for _, task := range tasks {
 		taskResponses = append(taskResponses, taskToResponse(&task))

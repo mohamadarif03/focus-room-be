@@ -41,7 +41,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	response, err := h.service.CreateTask(req, userIDString.(string))
 	if err != nil {
-		if err.Error() == "format tanggal tidak valid, gunakan YYYY-MM-DD" {
+		if err.Error() == "format tanggal tidak valid, gunakan format ISO 8601 (RFC3339)" {
 			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -52,18 +52,32 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	utils.Success(c.Writer, response, "Task berhasil ditambahkan", http.StatusCreated)
 }
 
-func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	// 1. Ambil ID dari URL
-	taskIDString := c.Param("id")
+func (h *TaskHandler) GetTasks(c *gin.Context) {
+	userIDString, _ := c.Get("user_id")
+	dateQuery := c.Query("date")
+	priorityQuery := c.Query("priority")
 
-	// 2. Ambil UserID dari Context (WAJIB)
+	response, err := h.service.GetTasks(userIDString.(string), dateQuery, priorityQuery)
+	if err != nil {
+		if err.Error() == "format tanggal tidak valid, gunakan YYYY-MM-DD" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+			return
+		}
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, response, "Berhasil mengambil data tasks", http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTask(c *gin.Context) {
+	taskIDString := c.Param("id")
 	userIDString, exists := c.Get("user_id")
 	if !exists {
 		utils.Error(c.Writer, nil, "Gagal mendapatkan user ID dari token", http.StatusInternalServerError)
 		return
 	}
 
-	// 3. Bind JSON
 	var req dto.UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var validationErrs validator.ValidationErrors
@@ -76,15 +90,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	// 4. Panggil Service
 	response, err := h.service.UpdateTask(taskIDString, userIDString.(string), req)
 	if err != nil {
 		if err.Error() == "task tidak ditemukan" {
-			utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound) // 404
+			utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
 			return
 		}
 		if err.Error() == "akses ditolak: anda bukan pemilik task ini" {
-			utils.Error(c.Writer, nil, err.Error(), http.StatusForbidden) // 403
+			utils.Error(c.Writer, nil, err.Error(), http.StatusForbidden)
 			return
 		}
 		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
@@ -96,7 +109,6 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	taskIDString := c.Param("id")
-
 	userIDString, exists := c.Get("user_id")
 	if !exists {
 		utils.Error(c.Writer, nil, "Gagal mendapatkan user ID dari token", http.StatusInternalServerError)
@@ -118,26 +130,4 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	}
 
 	utils.Success(c.Writer, nil, "Task berhasil dihapus", http.StatusOK)
-}
-
-func (h *TaskHandler) GetTasks(c *gin.Context) {
-	userIDString, _ := c.Get("user_id")
-
-	dateQuery := c.Query("date")
-
-	response, err := h.service.GetTasks(userIDString.(string), dateQuery)
-	if err != nil {
-		if err.Error() == "format tanggal tidak valid, gunakan YYYY-MM-DD" {
-			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
-			return
-		}
-		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	message := "Berhasil mengambil tasks untuk hari ini"
-	if dateQuery != "" {
-		message = "Berhasil mengambil tasks untuk tanggal " + dateQuery
-	}
-	utils.Success(c.Writer, response, message, http.StatusOK)
 }
