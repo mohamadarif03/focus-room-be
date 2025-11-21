@@ -38,6 +38,18 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil memproses PDF", http.StatusCreated)
 }
 
+func (h *AIHandler) GetMaterials(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	packageID := c.Query("package_id")
+
+	resp, err := h.service.GetMaterials(userID.(string), packageID)
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Berhasil mengambil daftar materi", http.StatusOK)
+}
 func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	var req dto.IngestYouTubeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

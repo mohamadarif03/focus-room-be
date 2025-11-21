@@ -239,7 +239,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		SourceType:    "youtube",
 		Source:        req.URL,
 		ExtractedText: rawText,
-		Summary:       summary, 
+		Summary:       summary,
 		PackageID:     pkgID,
 	}
 
@@ -481,6 +481,37 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 		Questions: checkJSON,
 		IsDone:    false,
 	}, nil
+}
+
+func (s *AIService) GetMaterials(userIDString, packageIDString string) ([]dto.MaterialResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	var pkgID *uint
+	if packageIDString != "" {
+		id, err := strconv.ParseUint(packageIDString, 10, 32)
+		if err == nil {
+			uid := uint(id)
+			pkgID = &uid
+		}
+	}
+
+	materials, err := s.matRepo.FindAll(uint(userID), pkgID)
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []dto.MaterialResponse
+	for _, m := range materials {
+		responses = append(responses, dto.MaterialResponse{
+			ID:         m.ID,
+			Title:      m.Title,
+			SourceType: m.SourceType,
+			Source:     m.Source,
+			Summary:    m.Summary,
+		})
+	}
+
+	return responses, nil
 }
 
 func (s *AIService) ClaimDailyStreak(userIDString string) error {
