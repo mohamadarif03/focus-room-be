@@ -25,10 +25,7 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 	}
 
 	title := c.PostForm("title")
-	if title == "" {
-		utils.Error(c.Writer, nil, "Judul materi wajib diisi", http.StatusBadRequest)
-		return
-	}
+
 	pkgID := c.PostForm("package_id")
 	userID, _ := c.Get("user_id")
 

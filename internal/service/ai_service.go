@@ -114,6 +114,7 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}, nil
 }
 
+
 func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	var pkgID *uint
@@ -126,33 +127,45 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		pkgID = req.PackageID
 	}
 
+	title := req.Title
+	if title == "" {
+		fetchedTitle, err := utils.GetVideoTitle(req.URL)
+		if err != nil {
+			title = req.URL
+		} else {
+			title = fetchedTitle
+		}
+	}
+
 	rawText, err := utils.ExtractTextFromYouTube(req.URL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("gagal mengambil transkrip: %w (pastikan video punya CC/Subtitle)", err)
 	}
 	if rawText == "" {
-		return nil, errors.New("video ini tidak memiliki transkrip")
+		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
 
 	newMaterial := &model.Material{
 		UserID:        uint(userID),
-		Title:         req.Title,
+		Title:         title,
 		SourceType:    "youtube",
 		Source:        req.URL,
 		ExtractedText: rawText,
+		Summary:       "",
 		PackageID:     pkgID,
 	}
+
 	savedMat, err := s.matRepo.Save(newMaterial)
 	if err != nil {
 		return nil, fmt.Errorf("gagal menyimpan materi: %w", err)
 	}
 
-	log.Println("YouTube Ingested, ID:", savedMat.ID)
 	return &dto.MaterialResponse{
 		ID:         savedMat.ID,
 		Title:      savedMat.Title,
 		SourceType: savedMat.SourceType,
 		Source:     savedMat.Source,
+		Summary:    savedMat.Summary,
 	}, nil
 }
 

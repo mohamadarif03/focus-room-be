@@ -1,61 +1,57 @@
 package main
 
 import (
-	"log"
+	// "log"
+	// "os" // Aktifkan jika pakai env
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
+	// "github.com/mohamadarif03/focus-room-be/internal/handler" // Import Handler
 	"github.com/mohamadarif03/focus-room-be/internal/model"
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
 	"github.com/mohamadarif03/focus-room-be/internal/router"
 	"github.com/mohamadarif03/focus-room-be/internal/service"
-	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Print("Gagal memuat file .env")
-	}
+	godotenv.Load()
 
 	database.InitDB()
-	log.Println("Melakukan AutoMigrate...")
-	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
-	database.Seed()
+	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{},)
+	// database.Seed() // Jalankan sekali saja
 
-	geminiAPIKey := "AIzaSyABmC0orVoBpegnBj6e4f9XL5_kdyYn2vU"
-	youtubeAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
-
-	if err := utils.InitYouTubeService(youtubeAPIKey); err != nil {
-		log.Fatalf("Gagal inisialisasi YouTube Service: %v", err)
-	}
+	geminiAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
+	// HAPUS YOUTUBE API KEY & INIT DI SINI
 
 	db := database.DB
 
+	// Repo
 	userRepo := repository.NewUserRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
 	matRepo := repository.NewMaterialRepository(db)
-	packageRepo := repository.NewPackageRepository(db)
+	pkgRepo := repository.NewPackageRepository(db)
+	// statsRepo := repository.NewStatsRepository(db)
 
+	// Service
 	userService := service.NewUserService(userRepo, taskRepo)
 	authService := service.NewAuthService(userRepo)
 	taskService := service.NewTaskService(taskRepo, userRepo)
-	packageService := service.NewPackageService(packageRepo)
+	pkgService := service.NewPackageService(pkgRepo)
+	// statsService := service.NewStatsService(statsRepo)
+	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo)
 
-	aiService, err := service.NewAIService(geminiAPIKey, matRepo, packageRepo, userRepo)
-	if err != nil {
-		log.Fatalf("Gagal inisialisasi AI Service: %v", err)
-	}
+	// Handler
+	// statsHandler := handler.NewStatsHandler(statsService)
+	// (Handler lain dibuat di dalam router jika Anda belum refactor router)
 
 	r := router.SetupRouter(
 		userService,
 		authService,
 		taskService,
 		aiService,
-		packageService,
+		pkgService,
+		// statsHandler, // Pastikan router.go menerima parameter ini
 	)
 
-	log.Println("Server berjalan di port 8080...")
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Gagal menjalankan server:", err)
-	}
+	r.Run(":8080")
 }

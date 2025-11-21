@@ -9,7 +9,7 @@ type MaterialResponse struct {
 }
 
 type IngestYouTubeRequest struct {
-	Title     string `json:"title" binding:"required"`
+	Title     string `json:"title"`
 	URL       string `json:"url" binding:"required,url"`
 	PackageID *uint  `json:"package_id"`
 }

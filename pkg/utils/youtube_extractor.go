@@ -1,115 +1,224 @@
 package utils
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"html"
+	// "io"
 	"net/http"
 	"net/url"
+	// "regexp"
 	"strings"
-
-	"google.golang.org/api/option"
-	"google.golang.org/api/youtube/v3"
+	"time"
 )
 
-var youtubeService *youtube.Service
-
-func InitYouTubeService(apiKey string) error {
-	if apiKey == "" {
-		return errors.New("YOUTUBE_API_KEY kosong")
-	}
-
-	ctx := context.Background()
-	var err error
-	youtubeService, err = youtube.NewService(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		return fmt.Errorf("gagal membuat YouTube service: %w", err)
-	}
-	return nil
+// Struktur Request ke Internal API YouTube
+type InnerTubeRequest struct {
+	Context InnerTubeContext `json:"context"`
+	VideoID string           `json:"videoId"`
 }
 
-func ExtractTextFromYouTube(youtubeURL string) (string, error) {
-	if youtubeService == nil {
-		return "", errors.New("YouTube service belum diinisialisasi")
-	}
+type InnerTubeContext struct {
+	Client InnerTubeClient `json:"client"`
+}
 
-	videoID, err := getVideoID(youtubeURL)
+type InnerTubeClient struct {
+	Hl            string `json:"hl"`
+	Gl            string `json:"gl"`
+	ClientName    string `json:"clientName"`
+	ClientVersion string `json:"clientVersion"`
+}
+
+// Struktur Response (Kita ambil bagian caption aja)
+type InnerTubeResponse struct {
+	Captions struct {
+		PlayerCaptionsTracklistRenderer struct {
+			CaptionTracks []struct {
+				BaseUrl      string `json:"baseUrl"`
+				Name         struct { SimpleText string `json:"simpleText"` } `json:"name"`
+				LanguageCode string `json:"languageCode"`
+				Kind         string `json:"kind"`
+			} `json:"captionTracks"`
+		} `json:"playerCaptionsTracklistRenderer"`
+	} `json:"captions"`
+	VideoDetails struct {
+		Title string `json:"title"`
+	} `json:"videoDetails"`
+	PlayabilityStatus struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	} `json:"playabilityStatus"`
+}
+
+// Struktur XML Transkrip (Output Akhir)
+type TranscriptXML struct {
+	Text []struct {
+		Body string `xml:",chardata"`
+	} `xml:"text"`
+}
+
+func ExtractTextFromYouTube(videoURL string) (string, error) {
+	videoID, err := extractVideoID(videoURL)
 	if err != nil {
 		return "", err
 	}
 
-	ctx := context.Background()
-	call := youtubeService.Captions.List([]string{"snippet"}, videoID).Context(ctx)
-	response, err := call.Do()
+	// 1. Setup Payload JSON (Pura-pura jadi Web Client)
+	// Ini endpoint resmi yang dipake website YouTube
+	payload := InnerTubeRequest{
+		VideoID: videoID,
+		Context: InnerTubeContext{
+			Client: InnerTubeClient{
+				ClientName:    "WEB",
+				ClientVersion: "2.20230920.00.00", // Versi client yang stabil
+				Hl:            "en",
+				Gl:            "US",
+			},
+		},
+	}
+
+	jsonData, _ := json.Marshal(payload)
+
+	// 2. Tembak API YouTube (Innertube)
+	// Key ini adalah Public Key YouTube Web (selalu sama dan publik)
+	apiUrl := "https://www.youtube.com/youtubei/v1/player?key=AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
+	
+	req, _ := http.NewRequest("POST", apiUrl, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("gagal mengambil daftar caption: %w", err)
-	}
-
-	if len(response.Items) == 0 {
-		return "", errors.New("video ini tidak memiliki caption/transkrip")
-	}
-
-	var captionTrack *youtube.Caption
-	for _, item := range response.Items {
-		lang := item.Snippet.Language
-		if lang == "id" {
-			captionTrack = item
-			break
-		}
-		if lang == "en" {
-			captionTrack = item
-		}
-	}
-
-	if captionTrack == nil {
-		return "", errors.New("tidak ditemukan transkrip 'id' atau 'en'")
-	}
-
-	downloadURL := fmt.Sprintf("https://www.youtube.com/api/timedtext?v=%s&lang=%s&fmt=srv3", videoID, captionTrack.Snippet.Language)
-	resp, err := http.Get(downloadURL)
-	if err != nil {
-		return "", fmt.Errorf("gagal download transkrip: %w", err)
+		return "", fmt.Errorf("gagal koneksi ke youtube api: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("gagal baca body transkrip: %w", err)
+	// 3. Parsing JSON Response
+	var data InnerTubeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return "", fmt.Errorf("gagal decode json response: %w", err)
 	}
 
-	xmlData := string(body)
-	var allText strings.Builder
-	lines := strings.Split(xmlData, "</text>")
-	for _, line := range lines {
-		start := strings.Index(line, `">`)
-		if start != -1 {
-			text := line[start+2:]
-			text = strings.ReplaceAll(text, "&#39;", "'")
-			text = strings.ReplaceAll(text, "&amp;", "&")
-			allText.WriteString(text)
-			allText.WriteString(" ")
+	// Cek Status Video
+	if data.PlayabilityStatus.Status != "OK" {
+		return "", fmt.Errorf("video tidak bisa diputar: %s", data.PlayabilityStatus.Reason)
+	}
+
+	tracks := data.Captions.PlayerCaptionsTracklistRenderer.CaptionTracks
+	if len(tracks) == 0 {
+		return "", errors.New("tidak ada caption/subtitle tersedia untuk video ini")
+	}
+
+	// 4. Pilih Bahasa (Indo -> Inggris -> Auto)
+	var selectedURL string
+
+	// Cari Indo
+	for _, t := range tracks {
+		if strings.HasPrefix(t.LanguageCode, "id") {
+			selectedURL = t.BaseUrl
+			break
+		}
+	}
+	// Cari Inggris
+	if selectedURL == "" {
+		for _, t := range tracks {
+			if strings.HasPrefix(t.LanguageCode, "en") {
+				selectedURL = t.BaseUrl
+				break
+			}
+		}
+	}
+	// Fallback
+	if selectedURL == "" {
+		selectedURL = tracks[0].BaseUrl
+	}
+
+	// 5. Download XML Transkrip
+	// Kita pakai URL yang didapat dari API, biasanya aman didownload langsung
+	reqDl, _ := http.NewRequest("GET", selectedURL, nil)
+	reqDl.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	
+	respDl, err := client.Do(reqDl)
+	if err != nil {
+		return "", fmt.Errorf("gagal download file subtitle: %w", err)
+	}
+	defer respDl.Body.Close()
+
+	if respDl.StatusCode != 200 {
+		return "", fmt.Errorf("gagal download subtitle, status: %d", respDl.StatusCode)
+	}
+
+	// 6. Parse XML ke Text
+	var transcriptXML TranscriptXML
+	if err := xml.NewDecoder(respDl.Body).Decode(&transcriptXML); err != nil {
+		return "", fmt.Errorf("gagal parsing xml subtitle: %w", err)
+	}
+
+	var fullText strings.Builder
+	for _, item := range transcriptXML.Text {
+		// Decode HTML entities (misal &#39; jadi ')
+		text := html.UnescapeString(item.Body)
+		text = strings.TrimSpace(text)
+		if text != "" {
+			fullText.WriteString(text)
+			fullText.WriteString(" ")
 		}
 	}
 
-	return allText.String(), nil
+	final := strings.TrimSpace(fullText.String())
+	if len(final) < 10 {
+		return "", errors.New("hasil transkrip kosong")
+	}
+
+	return final, nil
 }
 
-func getVideoID(youtubeURL string) (string, error) {
-	u, err := url.Parse(youtubeURL)
-	if err != nil {
-		return "", err
+// --- FUNGSI GET TITLE (Pake API yang sama biar konsisten) ---
+func GetVideoTitle(videoURL string) (string, error) {
+	videoID, err := extractVideoID(videoURL)
+	if err != nil { return "Unknown Title", nil }
+
+	payload := InnerTubeRequest{
+		VideoID: videoID,
+		Context: InnerTubeContext{
+			Client: InnerTubeClient{
+				ClientName:    "WEB",
+				ClientVersion: "2.20230920.00.00",
+				Hl:            "en",
+				Gl:            "US",
+			},
+		},
 	}
-	if u.Host == "www.youtube.com" || u.Host == "youtube.com" {
-		videoID := u.Query().Get("v")
-		if videoID != "" {
-			return videoID, nil
-		}
+	jsonData, _ := json.Marshal(payload)
+
+	apiUrl := "https://www.youtube.com/youtubei/v1/player?key=AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
+	req, _ := http.NewRequest("POST", apiUrl, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil { return "", err }
+	defer resp.Body.Close()
+
+	var data InnerTubeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.VideoDetails.Title != "" {
+		return data.VideoDetails.Title, nil
 	}
-	if u.Host == "youtu.be" {
-		if len(u.Path) > 1 {
-			return u.Path[1:], nil
-		}
-	}
-	return "", errors.New("tidak bisa parsing video ID dari URL YouTube")
+	return "Unknown Title", nil
+}
+
+// Helper ID
+func extractVideoID(videoURL string) (string, error) {
+	u, err := url.Parse(videoURL)
+	if err != nil { return "", err }
+	if u.Host == "youtu.be" { return strings.TrimPrefix(u.Path, "/"), nil }
+	q := u.Query()
+	v := q.Get("v")
+	if v == "" { return "", errors.New("no video id") }
+	return v, nil
 }
