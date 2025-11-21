@@ -18,14 +18,11 @@ func main() {
 
 	database.InitDB()
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{},)
-	// database.Seed() // Jalankan sekali saja
 
-	geminiAPIKey := "AIzaSyDHEQWpBthrtuBhgUnVW3MkIvwfTPmBnQ8"
-	// HAPUS YOUTUBE API KEY & INIT DI SINI
+	geminiAPIKey := "AIzaSyBcgUGtywSKJ7be2b1VO5K4xdp9nBz2mq0"
 
 	db := database.DB
 
-	// Repo
 	userRepo := repository.NewUserRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
 	matRepo := repository.NewMaterialRepository(db)
@@ -40,9 +37,6 @@ func main() {
 	// statsService := service.NewStatsService(statsRepo)
 	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo)
 
-	// Handler
-	// statsHandler := handler.NewStatsHandler(statsService)
-	// (Handler lain dibuat di dalam router jika Anda belum refactor router)
 
 	r := router.SetupRouter(
 		userService,
