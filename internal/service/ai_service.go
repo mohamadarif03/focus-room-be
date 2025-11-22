@@ -139,6 +139,7 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}
 	defer file.Close()
 
+	finalTitle := fileHeader.Filename
 
 
 	rawText, err := utils.ExtractTextFromPDF(file, fileHeader.Size)
