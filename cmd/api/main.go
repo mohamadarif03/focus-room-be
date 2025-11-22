@@ -4,8 +4,10 @@ import (
 	// "log"
 	// "os" // Aktifkan jika pakai env
 
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
@@ -24,6 +26,13 @@ func main() {
 	database.InitDB()
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 
+	fmt.Println("--- LIST ENV VARIABLES TERDETEKSI ---")
+	for _, e := range os.Environ() {
+		// Kita split biar cuma print NAMA variable-nya saja (KEY), jangan print VALUE-nya
+		pair := strings.SplitN(e, "=", 2)
+		fmt.Println(pair[0])
+	}
+	fmt.Println("-------------------------------------")
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 
 	db := database.DB
