@@ -54,14 +54,16 @@ func (h *PackageHandler) GetMyPackages(c *gin.Context) {
 }
 
 func (h *PackageHandler) GetPackageByID(c *gin.Context) {
-	userIDString, _ := c.Get("user_id")
 	idStr := c.Param("id")
-	response, err := h.service.GetPackageWithMaterials(idStr, userIDString.(string))
+	userID, _ := c.Get("user_id")
+
+	response, err := h.service.GetPackageWithMaterials(idStr, userID.(string))
 	if err != nil {
 		utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
 		return
 	}
-	utils.Success(c.Writer, response, "Berhasil mengambil package", http.StatusOK)
+
+	utils.Success(c.Writer, response, "Berhasil mengambil detail package", http.StatusOK)
 }
 
 func (h *PackageHandler) UpdatePackage(c *gin.Context) {

@@ -39,6 +39,23 @@ func (r *PackageRepository) CreateWithMaterials(pkg *model.Package, materials []
 	return tx.Commit().Error
 }
 
+func (r *PackageRepository) FindByIDWithMaterials(id, userID uint) (*model.Package, error) {
+	var pkg model.Package
+
+	err := r.db.Preload("Materials", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at desc")
+	}).Where("id = ?", id).First(&pkg).Error
+
+	if pkg.IsPublic {
+		return &pkg, err
+	}
+
+	if pkg.UserID != userID {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return &pkg, err
+}
 func (r *PackageRepository) FindByID(id, userID uint) (*model.Package, error) {
 	var pkg model.Package
 	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&pkg).Error
@@ -49,12 +66,6 @@ func (r *PackageRepository) FindAllByUserID(userID uint) ([]model.Package, error
 	var pkgs []model.Package
 	err := r.db.Where("user_id = ?", userID).Find(&pkgs).Error
 	return pkgs, err
-}
-
-func (r *PackageRepository) FindByIDWithMaterials(id, userID uint) (*model.Package, error) {
-	var pkg model.Package
-	err := r.db.Preload("Materials").Where("id = ? AND user_id = ?", id, userID).First(&pkg).Error
-	return &pkg, err
 }
 
 func (r *PackageRepository) Update(pkg *model.Package) (*model.Package, error) {

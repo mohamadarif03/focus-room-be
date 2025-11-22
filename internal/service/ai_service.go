@@ -245,8 +245,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		}
 		pkgID = req.PackageID
 	}
-
-	// Auto Title
+	
 	title := req.Title
 	if title == "" {
 		fetchedTitle, err := utils.GetVideoTitle(req.URL)
@@ -266,11 +265,9 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
 
-	// --- TAMBAHAN: GENERATE SUMMARY OTOMATIS (Start) ---
 	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
 	summaryModel.ResponseMIMEType = "text/plain"
 
-	// Potong teks jika terlalu panjang agar hemat token / tidak error
 	inputText := rawText
 	if len(inputText) > 30000 {
 		inputText = inputText[:30000] + "..."
@@ -281,7 +278,6 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 
 	resp, err := summaryModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		// Kita log warning saja, jangan return error agar materi tetap tersimpan meski tanpa summary
 		log.Printf("Warning: Gagal auto-summary YouTube: %v", err)
 	} else {
 		if len(resp.Candidates) > 0 {
@@ -292,7 +288,6 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 			}
 		}
 	}
-	// --- TAMBAHAN: GENERATE SUMMARY OTOMATIS (End) ---
 
 	isPublic := false
 	if userRole == "admin" {

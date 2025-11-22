@@ -61,7 +61,7 @@ func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("user_id")
-	role, _ := c.Get("role") // Ambil Role untuk penanda IsPublic
+	role, _ := c.Get("role")
 
 	resp, err := h.service.IngestYouTube(c.Request.Context(), req, userID.(string), role.(string))
 	if err != nil {

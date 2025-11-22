@@ -84,6 +84,35 @@ func (s *PackageService) AdminCreatePackage(req dto.AdminCreatePackageRequest, a
 	}, nil
 }
 
+
+func (s *PackageService) GetPackageWithMaterials(idString, userIDString string) (*dto.PackageWithMaterialsResponse, error) {
+	id, err := strconv.ParseUint(idString, 10, 32)
+	if err != nil {
+		return nil, errors.New("ID package tidak valid")
+	}
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	pkg, err := s.pkgRepo.FindByIDWithMaterials(uint(id), uint(userID))
+	if err != nil {
+		return nil, errors.New("package tidak ditemukan atau anda tidak memiliki akses")
+	}
+
+	var materialResponses []dto.MaterialSimple
+	for _, m := range pkg.Materials {
+		materialResponses = append(materialResponses, dto.MaterialSimple{
+			ID:         m.ID,
+			Title:      m.Title,
+			SourceType: m.SourceType,
+		})
+	}
+
+	return &dto.PackageWithMaterialsResponse{
+		ID:        pkg.ID,
+		Title:     pkg.Title,
+		ColorIcon: pkg.ColorIcon,
+		Materials: materialResponses,
+	}, nil
+}
 func (s *PackageService) GetMyPackages(userIDString string) ([]dto.PackageResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -99,31 +128,6 @@ func (s *PackageService) GetMyPackages(userIDString string) ([]dto.PackageRespon
 	return responses, nil
 }
 
-func (s *PackageService) GetPackageWithMaterials(idStr, userIDString string) (*dto.PackageWithMaterialsResponse, error) {
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
-	pkgID, _ := strconv.ParseUint(idStr, 10, 32)
-
-	pkg, err := s.pkgRepo.FindByIDWithMaterials(uint(pkgID), uint(userID))
-	if err != nil {
-		return nil, errors.New("package tidak ditemukan")
-	}
-
-	var materialsDTO []dto.MaterialSimple
-	for _, mat := range pkg.Materials {
-		materialsDTO = append(materialsDTO, dto.MaterialSimple{
-			ID:         mat.ID,
-			Title:      mat.Title,
-			SourceType: mat.SourceType,
-		})
-	}
-
-	return &dto.PackageWithMaterialsResponse{
-		ID:        pkg.ID,
-		Title:     pkg.Title,
-		ColorIcon: pkg.ColorIcon,
-		Materials: materialsDTO,
-	}, nil
-}
 
 func (s *PackageService) UpdatePackage(idStr, userIDString string, req dto.PackageRequest) (*dto.PackageResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
