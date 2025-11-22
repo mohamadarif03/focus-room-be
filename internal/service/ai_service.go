@@ -139,6 +139,8 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}
 	defer file.Close()
 
+
+
 	rawText, err := utils.ExtractTextFromPDF(file, fileHeader.Size)
 	if err != nil {
 		return nil, fmt.Errorf("gagal ekstrak PDF: %w", err)
@@ -170,7 +172,6 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 			}
 		}
 	}
-	// ------------------------------
 
 	isPublic := false
 	if userRole == "admin" {
@@ -179,7 +180,7 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 
 	newMaterial := &model.Material{
 		UserID:        uint(userID),
-		Title:         title,
+		Title:         finalTitle,
 		SourceType:    "pdf",
 		Source:        fileHeader.Filename,
 		ExtractedText: rawText,
