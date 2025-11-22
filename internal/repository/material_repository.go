@@ -25,7 +25,7 @@ func (r *MaterialRepository) Update(material *model.Material) error {
 func (r *MaterialRepository) FindAll(userID uint, userRole string, packageID *uint) ([]model.Material, error) {
 	var materials []model.Material
 
-	query := r.db.Model(&model.Material{})
+	query := r.db.Model(&model.Material{}).Preload("Package")
 
 	if userRole == "admin" {
 		query = query.Where("user_id = ?", userID)
@@ -43,8 +43,8 @@ func (r *MaterialRepository) FindAll(userID uint, userRole string, packageID *ui
 
 func (r *MaterialRepository) FindOneAccessible(id, userID uint, userRole string) (*model.Material, error) {
 	var material model.Material
-	
-	query := r.db.Where("id = ?", id)
+
+	query := r.db.Preload("Package").Where("id = ?", id)
 
 	if userRole == "admin" {
 		query = query.Where("user_id = ?", userID)

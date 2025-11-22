@@ -103,7 +103,6 @@ func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string)
 		}
 	}
 
-	// Panggil repo dengan Role untuk filter privasi
 	materials, err := s.matRepo.FindAll(uint(userID), userRole, pkgID)
 	if err != nil {
 		return nil, err
@@ -111,13 +110,18 @@ func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string)
 
 	var responses []dto.MaterialResponse
 	for _, m := range materials {
+		pkgTitle := ""
+		if m.PackageID != nil {
+			pkgTitle = m.Package.Title
+		}
 		responses = append(responses, dto.MaterialResponse{
-			ID:         m.ID,
-			Title:      m.Title,
-			SourceType: m.SourceType,
-			Source:     m.Source,
-			Summary:    m.Summary,
-			IsPublic:   m.IsPublic,
+			ID:           m.ID,
+			Title:        m.Title,
+			SourceType:   m.SourceType,
+			Source:       m.Source,
+			Summary:      m.Summary,
+			IsPublic:     m.IsPublic,
+			PackageTitle: pkgTitle,
 		})
 	}
 
@@ -139,7 +143,6 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	defer file.Close()
 
 	finalTitle := fileHeader.Filename
-
 
 	rawText, err := utils.ExtractTextFromPDF(file, fileHeader.Size)
 	if err != nil {
@@ -203,7 +206,6 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}, nil
 }
 
-
 func (s *AIService) GetMaterialDetail(idString, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	id, err := strconv.ParseUint(idString, 10, 32)
 	if err != nil {
@@ -215,15 +217,20 @@ func (s *AIService) GetMaterialDetail(idString, userIDString, userRole string) (
 	if err != nil {
 		return nil, errors.New("materi tidak ditemukan atau anda tidak memiliki akses")
 	}
+	pkgTitle := ""
+	if material.PackageID != nil {
+		pkgTitle = material.Package.Title
+	}
 
 	return &dto.MaterialResponse{
-		ID:            material.ID,
-		Title:         material.Title,
-		SourceType:    material.SourceType,
-		Source:        material.Source,
-		Summary:       material.Summary,
-		IsPublic:      material.IsPublic,
-		CreatedAt:     material.CreatedAt,
+		ID:           material.ID,
+		Title:        material.Title,
+		SourceType:   material.SourceType,
+		Source:       material.Source,
+		Summary:      material.Summary,
+		IsPublic:     material.IsPublic,
+		PackageTitle: pkgTitle,
+		CreatedAt:    material.CreatedAt,
 	}, nil
 }
 

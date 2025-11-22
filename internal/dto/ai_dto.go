@@ -3,13 +3,14 @@ package dto
 import "time"
 
 type MaterialResponse struct {
-	ID         uint      `json:"id"`
-	Title      string    `json:"title"`
-	SourceType string    `json:"source_type"`
-	Source     string    `json:"source"`
-	Summary    string    `json:"summary"`
-	IsPublic   bool      `json:"is_public"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           uint      `json:"id"`
+	Title        string    `json:"title"`
+	SourceType   string    `json:"source_type"`
+	Source       string    `json:"source"`
+	Summary      string    `json:"summary"`
+	PackageTitle string    `json:"package_title"`
+	IsPublic     bool      `json:"is_public"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type IngestYouTubeRequest struct {
