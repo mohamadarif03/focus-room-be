@@ -125,7 +125,6 @@ func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string)
 	return responses, nil
 }
 
-// --- INGEST PDF (AUTO SUMMARY) ---
 func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, packageIDStr, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
