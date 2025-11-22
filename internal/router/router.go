@@ -75,6 +75,7 @@ func SetupRouter(
 			materialGroup := studentGroup.Group("/materials")
 			{
 				materialGroup.GET("", aiHandler.GetMaterials)
+				materialGroup.GET("/:id", aiHandler.GetMaterialDetail)
 				materialGroup.POST("/pdf", aiHandler.IngestPDF)
 				materialGroup.POST("/youtube", aiHandler.IngestYouTube)
 			}

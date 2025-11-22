@@ -41,6 +41,24 @@ func (r *MaterialRepository) FindAll(userID uint, userRole string, packageID *ui
 	return materials, err
 }
 
+func (r *MaterialRepository) FindOneAccessible(id, userID uint, userRole string) (*model.Material, error) {
+	var material model.Material
+	
+	query := r.db.Where("id = ?", id)
+
+	if userRole == "admin" {
+		query = query.Where("user_id = ?", userID)
+	} else {
+		query = query.Where("user_id = ? OR is_public = ?", userID, true)
+	}
+
+	err := query.First(&material).Error
+	if err != nil {
+		return nil, err
+	}
+	return &material, nil
+}
+
 func (r *MaterialRepository) FindByID(id, userID uint) (*model.Material, error) {
 	var material model.Material
 	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&material).Error

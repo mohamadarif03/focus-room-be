@@ -203,6 +203,30 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}, nil
 }
 
+
+func (s *AIService) GetMaterialDetail(idString, userIDString, userRole string) (*dto.MaterialResponse, error) {
+	id, err := strconv.ParseUint(idString, 10, 32)
+	if err != nil {
+		return nil, errors.New("ID materi tidak valid")
+	}
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	material, err := s.matRepo.FindOneAccessible(uint(id), uint(userID), userRole)
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan atau anda tidak memiliki akses")
+	}
+
+	return &dto.MaterialResponse{
+		ID:            material.ID,
+		Title:         material.Title,
+		SourceType:    material.SourceType,
+		Source:        material.Source,
+		Summary:       material.Summary,
+		IsPublic:      material.IsPublic,
+		CreatedAt:     material.CreatedAt,
+	}, nil
+}
+
 func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	var pkgID *uint

@@ -38,7 +38,21 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil memproses PDF", http.StatusCreated)
 }
 
-// POST /materials/youtube
+
+func (h *AIHandler) GetMaterialDetail(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, _ := c.Get("user_id")
+	role, _ := c.Get("role")
+
+	resp, err := h.service.GetMaterialDetail(idStr, userID.(string), role.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Berhasil mengambil detail materi", http.StatusOK)
+}
+
 func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	var req dto.IngestYouTubeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
