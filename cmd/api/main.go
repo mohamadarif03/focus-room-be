@@ -4,6 +4,7 @@ import (
 	// "log"
 	// "os" // Aktifkan jika pakai env
 
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -17,8 +18,9 @@ import (
 )
 
 func main() {
-	godotenv.Load()
-
+	if err := godotenv.Load(); err != nil {
+		log.Println("Info: File .env tidak ditemukan. Menggunakan System Environment Variables (Railway/Docker).")
+	}
 	database.InitDB()
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 

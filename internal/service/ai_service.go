@@ -91,7 +91,6 @@ Materi:
 %s`, text)
 }
 
-// --- GET ALL MATERIALS ---
 func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string) ([]dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
