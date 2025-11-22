@@ -10,6 +10,7 @@ type Material struct {
 	Source        string `gorm:"size:255"`
 	ExtractedText string `gorm:"type:text"`
 	Summary       string `gorm:"type:text" json:"summary"`
+	IsPublic      bool   `gorm:"default:false"`
 	PackageID     *uint  `gorm:"null"`
 	CreatedAt     time.Time
 	User          User    `gorm:"foreignKey:UserID"`

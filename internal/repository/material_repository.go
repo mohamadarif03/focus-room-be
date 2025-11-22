@@ -22,10 +22,16 @@ func (r *MaterialRepository) Update(material *model.Material) error {
 	return r.db.Save(material).Error
 }
 
-func (r *MaterialRepository) FindAll(userID uint, packageID *uint) ([]model.Material, error) {
+func (r *MaterialRepository) FindAll(userID uint, userRole string, packageID *uint) ([]model.Material, error) {
 	var materials []model.Material
 
-	query := r.db.Where("user_id = ?", userID)
+	query := r.db.Model(&model.Material{})
+
+	if userRole == "admin" {
+		query = query.Where("user_id = ?", userID)
+	} else {
+		query = query.Where("user_id = ? OR is_public = ?", userID, true)
+	}
 
 	if packageID != nil {
 		query = query.Where("package_id = ?", *packageID)

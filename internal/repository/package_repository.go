@@ -18,6 +18,27 @@ func (r *PackageRepository) Create(pkg *model.Package) (*model.Package, error) {
 	return pkg, err
 }
 
+func (r *PackageRepository) CreateWithMaterials(pkg *model.Package, materials []model.Material) error {
+	tx := r.db.Begin()
+
+	if err := tx.Create(pkg).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for i := range materials {
+		materials[i].PackageID = &pkg.ID
+		materials[i].UserID = pkg.UserID
+
+		if err := tx.Create(&materials[i]).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
 func (r *PackageRepository) FindByID(id, userID uint) (*model.Package, error) {
 	var pkg model.Package
 	err := r.db.Where("id = ? AND user_id = ?", id, userID).First(&pkg).Error

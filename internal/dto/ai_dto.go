@@ -6,6 +6,7 @@ type MaterialResponse struct {
 	SourceType string `json:"source_type"`
 	Source     string `json:"source"`
 	Summary    string `json:"summary"`
+	IsPublic   bool   `json:"is_public"`
 }
 
 type IngestYouTubeRequest struct {

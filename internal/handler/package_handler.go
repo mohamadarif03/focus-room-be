@@ -87,6 +87,24 @@ func (h *PackageHandler) UpdatePackage(c *gin.Context) {
 	utils.Success(c.Writer, response, "Package berhasil diupdate", http.StatusOK)
 }
 
+func (h *PackageHandler) AdminCreatePackage(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	var req dto.AdminCreatePackageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.AdminCreatePackage(req, userID.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Package kurikulum berhasil dibuat", http.StatusCreated)
+}
+
 func (h *PackageHandler) DeletePackage(c *gin.Context) {
 	userIDString, _ := c.Get("user_id")
 	idStr := c.Param("id")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
+
 	// "github.com/mohamadarif03/focus-room-be/internal/handler" // Import Handler
 	"github.com/mohamadarif03/focus-room-be/internal/model"
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
@@ -17,7 +18,7 @@ func main() {
 	godotenv.Load()
 
 	database.InitDB()
-	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{},)
+	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 
 	geminiAPIKey := "AIzaSyBcgUGtywSKJ7be2b1VO5K4xdp9nBz2mq0"
 
@@ -27,16 +28,15 @@ func main() {
 	taskRepo := repository.NewTaskRepository(db)
 	matRepo := repository.NewMaterialRepository(db)
 	pkgRepo := repository.NewPackageRepository(db)
-	// statsRepo := repository.NewStatsRepository(db)
+	statsRepo := repository.NewStatsRepository(db)
 
 	// Service
 	userService := service.NewUserService(userRepo, taskRepo)
 	authService := service.NewAuthService(userRepo)
 	taskService := service.NewTaskService(taskRepo, userRepo)
 	pkgService := service.NewPackageService(pkgRepo)
-	// statsService := service.NewStatsService(statsRepo)
-	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo)
-
+	statsService := service.NewStatsService(statsRepo)
+	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo, statsRepo)
 
 	r := router.SetupRouter(
 		userService,
@@ -44,7 +44,7 @@ func main() {
 		taskService,
 		aiService,
 		pkgService,
-		// statsHandler, // Pastikan router.go menerima parameter ini
+		statsService,
 	)
 
 	r.Run(":8080")

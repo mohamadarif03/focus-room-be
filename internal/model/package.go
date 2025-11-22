@@ -7,6 +7,7 @@ type Package struct {
 	Title     string `gorm:"size:255;not null"`
 	ColorIcon string `gorm:"size:50;not null"`
 	UserID    uint   `gorm:"not null"`
+	IsPublic  bool   `gorm:"default:false"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

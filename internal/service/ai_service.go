@@ -20,10 +20,12 @@ import (
 )
 
 type AIService struct {
+	genaiClient *genai.Client // Client untuk buat model baru secara dinamis
 	geminiModel *genai.GenerativeModel
 	matRepo     *repository.MaterialRepository
 	pkgRepo     *repository.PackageRepository
 	userRepo    *repository.UserRepository
+	statsRepo   *repository.StatsRepository
 }
 
 func NewAIService(
@@ -31,6 +33,7 @@ func NewAIService(
 	matRepo *repository.MaterialRepository,
 	pkgRepo *repository.PackageRepository,
 	userRepo *repository.UserRepository,
+	statsRepo *repository.StatsRepository,
 ) (*AIService, error) {
 	if apiKey == "" {
 		return nil, errors.New("GEMINI_API_KEY tidak ditemukan")
@@ -42,15 +45,17 @@ func NewAIService(
 		return nil, err
 	}
 
-	// Default MIME Type kita set ke JSON (untuk fitur Quiz/Flashcard)
+	// Model Utama (Default JSON untuk Quiz/Flashcard)
 	model := client.GenerativeModel("gemini-2.5-flash")
 	model.ResponseMIMEType = "application/json"
 
 	return &AIService{
+		genaiClient: client,
 		geminiModel: model,
 		matRepo:     matRepo,
 		pkgRepo:     pkgRepo,
 		userRepo:    userRepo,
+		statsRepo:   statsRepo,
 	}, nil
 }
 
@@ -71,60 +76,83 @@ func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error)
 	return &finalID, nil
 }
 
+// --- Helper Prompt Dosen (Agar Konsisten) ---
 func getLecturerPrompt(text string) string {
 	return fmt.Sprintf(`
-Jelaskan ulang isi materi berikut secara jelas, mendalam, dan terstruktur, seperti seorang dosen profesional yang menjelaskan konsep di kelas, namun tanpa sapaan pembuka atau penutup kelas (misalnya: “Selamat pagi mahasiswa”, “Apakah ada pertanyaan?”, dan sejenisnya).
+Jelaskan ulang isi materi berikut secara jelas, mendalam, dan terstruktur, seperti seorang dosen profesional yang menjelaskan konsep di kelas, namun tanpa sapaan pembuka atau penutup.
 
 Saat menjelaskan ulang:
-1. Gunakan bahasa yang natural, komunikatif, dan logis, bukan formal kaku.
+1. Gunakan bahasa yang natural, komunikatif, dan logis.
 2. Fokus untuk memperjelas isi materi, bukan sekadar merangkum.
 3. Jelaskan konsep dan ide utama dengan contoh nyata atau analogi jika perlu.
-4. Jika ada istilah sulit, jelaskan maknanya terlebih dahulu sebelum lanjut.
-5. Gunakan gaya penjelasan yang mengalir seperti narasi dosen yang fokus menjelaskan isi (tanpa salam, tanpa tanya jawab).
-6. Tutup dengan ringkasan inti dan kesimpulan.
-
-Output yang diharapkan:
-- Penjelasan ulang yang runtut, detail, dan mudah dipahami.
-- Gaya profesional namun tetap natural.
-- Tidak ada bagian sapaan, humor, atau tanya-jawab interaktif.
+4. Tutup dengan ringkasan inti dan kesimpulan.
 
 Materi:
 %s`, text)
 }
 
-func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString string) (*dto.MaterialResponse, error) {
+// --- GET ALL MATERIALS ---
+func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string) ([]dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
-	// 1. Validasi Package
+	var pkgID *uint
+	if packageIDString != "" {
+		id, err := strconv.ParseUint(packageIDString, 10, 32)
+		if err == nil {
+			uid := uint(id)
+			pkgID = &uid
+		}
+	}
+
+	// Panggil repo dengan Role untuk filter privasi
+	materials, err := s.matRepo.FindAll(uint(userID), userRole, pkgID)
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []dto.MaterialResponse
+	for _, m := range materials {
+		responses = append(responses, dto.MaterialResponse{
+			ID:         m.ID,
+			Title:      m.Title,
+			SourceType: m.SourceType,
+			Source:     m.Source,
+			Summary:    m.Summary,
+			IsPublic:   m.IsPublic,
+		})
+	}
+
+	return responses, nil
+}
+
+// --- INGEST PDF (AUTO SUMMARY) ---
+func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString, userRole string) (*dto.MaterialResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
 	pkgID, err := s.validatePackage(packageIDStr, uint(userID))
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Buka File
 	file, err := fileHeader.Open()
 	if err != nil {
 		return nil, errors.New("gagal membuka file")
 	}
 	defer file.Close()
 
-	// 3. Ekstrak PDF
 	rawText, err := utils.ExtractTextFromPDF(file, fileHeader.Size)
 	if err != nil {
-		return nil, fmt.Errorf("gagal baca PDF: %w", err)
+		return nil, fmt.Errorf("gagal ekstrak PDF: %w", err)
+	}
+	if rawText == "" {
+		return nil, errors.New("PDF ini tidak mengandung teks")
 	}
 
-	// 4. Fallback Title: Jika title kosong, pakai nama file
-	finalTitle := title
-	if finalTitle == "" {
-		finalTitle = fileHeader.Filename
-	}
+	// --- AUTO SUMMARY (TEXT MODE) ---
+	// Gunakan instance model BARU khusus untuk text agar tidak merusak settingan JSON global
+	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel.ResponseMIMEType = "text/plain"
 
-	// 5. Generate Summary
-	// PENTING: Clone model atau set konfigurasi ulang agar tidak bentrok setting JSON/Text
-	s.geminiModel.ResponseMIMEType = "text/plain"
-
-	// Potong text jika terlalu panjang agar tidak error token limit
 	inputText := rawText
 	if len(inputText) > 30000 {
 		inputText = inputText[:30000] + "..."
@@ -133,17 +161,9 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	prompt := getLecturerPrompt(inputText)
 	summary := ""
 
-	// Generate Content
-	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
-
-	// CEK ERROR: Jangan sekadar di-log jika ingin memastikan user tahu
+	resp, err := summaryModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		log.Printf("ERROR GEMINI: %v", err)
-		// Opsi A: Return error (User gagal upload)
-		// return nil, fmt.Errorf("gagal generate summary: %v", err)
-
-		// Opsi B: Lanjut tapi summary kosong (User berhasil upload, summary nanti)
-		summary = "Gagal membuat rangkuman otomatis. Silakan coba generate ulang."
+		log.Printf("Warning: Gagal auto-summary PDF: %v", err)
 	} else {
 		if len(resp.Candidates) > 0 {
 			for _, part := range resp.Candidates[0].Content.Parts {
@@ -153,18 +173,23 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 			}
 		}
 	}
+	// ------------------------------
 
-	// 6. Simpan ke DB
+	isPublic := false
+	if userRole == "admin" {
+		isPublic = true
+	}
+
 	newMaterial := &model.Material{
 		UserID:        uint(userID),
-		Title:         finalTitle, // Pakai finalTitle
+		Title:         title,
 		SourceType:    "pdf",
 		Source:        fileHeader.Filename,
 		ExtractedText: rawText,
 		Summary:       summary,
 		PackageID:     pkgID,
+		IsPublic:      isPublic,
 	}
-
 	savedMat, err := s.matRepo.Save(newMaterial)
 	if err != nil {
 		return nil, fmt.Errorf("gagal menyimpan materi: %w", err)
@@ -176,10 +201,12 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 		SourceType: savedMat.SourceType,
 		Source:     savedMat.Source,
 		Summary:    savedMat.Summary,
+		IsPublic:   savedMat.IsPublic,
 	}, nil
 }
 
-func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString string) (*dto.MaterialResponse, error) {
+// --- INGEST YOUTUBE ---
+func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	var pkgID *uint
 
@@ -191,6 +218,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		pkgID = req.PackageID
 	}
 
+	// Auto Title
 	title := req.Title
 	if title == "" {
 		fetchedTitle, err := utils.GetVideoTitle(req.URL)
@@ -201,6 +229,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		}
 	}
 
+	// Ambil Transkrip (Simple Synchronous)
 	rawText, err := utils.ExtractTextFromYouTube(req.URL)
 	if err != nil {
 		return nil, fmt.Errorf("gagal mengambil transkrip: %w (pastikan video punya CC/Subtitle)", err)
@@ -209,28 +238,9 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
 
-	s.geminiModel.ResponseMIMEType = "text/plain"
-
-	inputText := rawText
-	if len(inputText) > 30000 {
-		inputText = inputText[:30000] + "..."
-	}
-
-	prompt := getLecturerPrompt(inputText)
-	summary := ""
-
-	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
-	if err != nil {
-		log.Printf("Warning: Gagal auto-summary YouTube: %v", err)
-		summary = "Gagal membuat rangkuman otomatis. Anda bisa mencoba generate ulang nanti."
-	} else {
-		if len(resp.Candidates) > 0 {
-			for _, part := range resp.Candidates[0].Content.Parts {
-				if txt, ok := part.(genai.Text); ok {
-					summary += string(txt)
-				}
-			}
-		}
+	isPublic := false
+	if userRole == "admin" {
+		isPublic = true
 	}
 
 	newMaterial := &model.Material{
@@ -239,8 +249,9 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		SourceType:    "youtube",
 		Source:        req.URL,
 		ExtractedText: rawText,
-		Summary:       summary,
+		Summary:       "",
 		PackageID:     pkgID,
+		IsPublic:      isPublic,
 	}
 
 	savedMat, err := s.matRepo.Save(newMaterial)
@@ -254,9 +265,11 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		SourceType: savedMat.SourceType,
 		Source:     savedMat.Source,
 		Summary:    savedMat.Summary,
+		IsPublic:   savedMat.IsPublic,
 	}, nil
 }
 
+// --- GENERATE SUMMARY (MANUAL) ---
 func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummaryRequest, userIDString string) (*dto.GenerateSummaryResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -266,20 +279,19 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 	}
 
 	if material.Summary != "" {
-		log.Printf("Summary materi ID %d diambil dari database (Cache Hit)", material.ID)
 		return &dto.GenerateSummaryResponse{
 			MaterialID: material.ID,
 			Summary:    material.Summary,
 		}, nil
 	}
 
-	log.Printf("Summary materi ID %d belum ada. Meminta Gemini...", material.ID)
-
-	s.geminiModel.ResponseMIMEType = "text/plain"
+	// Gunakan model Text/Plain
+	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel.ResponseMIMEType = "text/plain"
 
 	prompt := getLecturerPrompt(material.ExtractedText)
 
-	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
+	resp, err := summaryModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Gemini: %w", err)
 	}
@@ -297,9 +309,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 	}
 
 	material.Summary = summary
-	if err := s.matRepo.Update(material); err != nil {
-		log.Printf("Gagal menyimpan summary ke DB: %v", err)
-	}
+	s.matRepo.Update(material)
 
 	return &dto.GenerateSummaryResponse{
 		MaterialID: material.ID,
@@ -307,6 +317,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 	}, nil
 }
 
+// --- GENERATE FLASHCARDS ---
 func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlashcardRequest, userIDString string) (*dto.GenerateFlashcardResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -315,12 +326,12 @@ func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlas
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	s.geminiModel.ResponseMIMEType = "application/json"
-
+	// Gunakan s.geminiModel (Default: JSON)
 	prompt := fmt.Sprintf(`
 		Buatkan flashcard (kartu belajar) berdasarkan materi berikut.
 		Format Output HARUS JSON ARRAY MURNI:
 		[{"front": "...", "back": "..."}]
+		Jumlah kartu: Sesuai kecocokan materi (max 10).
 		Materi: %s
 	`, material.ExtractedText)
 
@@ -344,7 +355,6 @@ func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlas
 
 	var cards []dto.FlashcardItem
 	if err := json.Unmarshal([]byte(jsonString), &cards); err != nil {
-		log.Printf("Error parsing flashcards: %v | Raw: %s", err, jsonString)
 		return nil, errors.New("gagal memproses hasil flashcard dari AI")
 	}
 
@@ -354,6 +364,7 @@ func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlas
 	}, nil
 }
 
+// --- GENERATE QUIZ (CUSTOM) ---
 func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizRequest, userIDString string) (*dto.GenerateQuizResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -362,8 +373,7 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	s.geminiModel.ResponseMIMEType = "application/json"
-
+	// Gunakan s.geminiModel (Default: JSON)
 	prompt := fmt.Sprintf(`
 		Buatkan %d soal latihan berdasarkan materi berikut.
 		Output harus JSON Array.
@@ -398,6 +408,7 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	}, nil
 }
 
+// --- GET DAILY QUIZ (STATELESS) ---
 func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
@@ -444,9 +455,7 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 		finalText = finalText[:12000]
 	}
 
-	// Ubah mode ke JSON
-	s.geminiModel.ResponseMIMEType = "application/json"
-
+	// Gunakan s.geminiModel (Default: JSON)
 	prompt := fmt.Sprintf(`
 		Buatkan 10 soal pilihan ganda berdasarkan teks gabungan ini.
 		Format Output HARUS JSON ARRAY (Strict JSON):
@@ -483,37 +492,7 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 	}, nil
 }
 
-func (s *AIService) GetMaterials(userIDString, packageIDString string) ([]dto.MaterialResponse, error) {
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
-
-	var pkgID *uint
-	if packageIDString != "" {
-		id, err := strconv.ParseUint(packageIDString, 10, 32)
-		if err == nil {
-			uid := uint(id)
-			pkgID = &uid
-		}
-	}
-
-	materials, err := s.matRepo.FindAll(uint(userID), pkgID)
-	if err != nil {
-		return nil, err
-	}
-
-	var responses []dto.MaterialResponse
-	for _, m := range materials {
-		responses = append(responses, dto.MaterialResponse{
-			ID:         m.ID,
-			Title:      m.Title,
-			SourceType: m.SourceType,
-			Source:     m.Source,
-			Summary:    m.Summary,
-		})
-	}
-
-	return responses, nil
-}
-
+// --- CLAIM STREAK ---
 func (s *AIService) ClaimDailyStreak(userIDString string) error {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
@@ -544,12 +523,15 @@ func (s *AIService) ClaimDailyStreak(userIDString string) error {
 		return errors.New("gagal menambahkan poin streak")
 	}
 
-	// quizLog := &model.QuizLog{
-	// 	UserID:    user.ID,
-	// 	Score:     10,
-	// 	CreatedAt: time.Now(),
-	// }
-	// _ = quizLog
+	// Log Activity untuk Statistik
+	quizLog := &model.QuizLog{
+		UserID:    user.ID,
+		Score:     10,
+		CreatedAt: time.Now(),
+	}
+	if err := s.statsRepo.CreateQuizLog(quizLog); err != nil {
+		log.Printf("Warning: Gagal log quiz activity: %v", err)
+	}
 
 	log.Printf("STREAK UP! User %d - Total Streak: %d", userID, user.CurrentStreak)
 	return nil

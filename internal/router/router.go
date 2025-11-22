@@ -14,6 +14,7 @@ func SetupRouter(
 	taskService *service.TaskService,
 	aiService *service.AIService,
 	packageService *service.PackageService,
+	statsService *service.StatsService,
 ) *gin.Engine {
 
 	r := gin.Default()
@@ -33,6 +34,7 @@ func SetupRouter(
 	taskHandler := handler.NewTaskHandler(taskService)
 	aiHandler := handler.NewAIHandler(aiService)
 	packageHandler := handler.NewPackageHandler(packageService)
+	statsHandler := handler.NewStatsHandler(statsService)
 
 	api := r.Group("/api/v1")
 	{
@@ -52,6 +54,8 @@ func SetupRouter(
 		studentGroup.Use(middleware.AuthMiddleware())
 		studentGroup.Use(middleware.StudentMiddleware())
 		{
+			studentGroup.GET("/stats", statsHandler.GetStats)
+			studentGroup.POST("/focus-log", statsHandler.LogFocus)
 			packageGroup := studentGroup.Group("/packages")
 			{
 				packageGroup.POST("", packageHandler.CreatePackage)
@@ -98,6 +102,7 @@ func SetupRouter(
 		adminGroup.Use(middleware.AuthMiddleware())
 		adminGroup.Use(middleware.AdminMiddleware())
 		{
+			adminGroup.POST("/packages", packageHandler.AdminCreatePackage)
 			adminGroup.GET("/users", userHandler.GetUsers)
 			adminGroup.GET("/users/:id", userHandler.GetUserByID)
 			adminGroup.PUT("/users/:id", userHandler.UpdateUser)

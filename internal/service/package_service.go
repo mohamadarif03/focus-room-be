@@ -45,6 +45,45 @@ func (s *PackageService) CreatePackage(req dto.PackageRequest, userIDString stri
 	return &response, nil
 }
 
+func (s *PackageService) AdminCreatePackage(req dto.AdminCreatePackageRequest, adminIDString string) (*dto.PackageWithMaterialsResponse, error) {
+	adminID, _ := strconv.ParseUint(adminIDString, 10, 32)
+
+	newPkg := model.Package{
+		Title:     req.Title,
+		ColorIcon: req.ColorIcon,
+		UserID:    uint(adminID),
+		IsPublic:  req.IsPublic,
+	}
+
+	var materials []model.Material
+	var materialsResponse []dto.MaterialSimple
+
+	for _, mReq := range req.Materials {
+		mat := model.Material{
+			Title:      mReq.Title,
+			SourceType: mReq.SourceType,
+			Source:     mReq.Source,
+		}
+		materials = append(materials, mat)
+
+		materialsResponse = append(materialsResponse, dto.MaterialSimple{
+			Title:      mReq.Title,
+			SourceType: mReq.SourceType,
+		})
+	}
+
+	if err := s.pkgRepo.CreateWithMaterials(&newPkg, materials); err != nil {
+		return nil, errors.New("gagal membuat package dan materi")
+	}
+
+	return &dto.PackageWithMaterialsResponse{
+		ID:        newPkg.ID,
+		Title:     newPkg.Title,
+		ColorIcon: newPkg.ColorIcon,
+		Materials: materialsResponse,
+	}, nil
+}
+
 func (s *PackageService) GetMyPackages(userIDString string) ([]dto.PackageResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
