@@ -4,6 +4,8 @@ import (
 	// "log"
 	// "os" // Aktifkan jika pakai env
 
+	"os"
+
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
 
@@ -20,7 +22,7 @@ func main() {
 	database.InitDB()
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
 
-	geminiAPIKey := "AIzaSyBcgUGtywSKJ7be2b1VO5K4xdp9nBz2mq0"
+	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 
 	db := database.DB
 

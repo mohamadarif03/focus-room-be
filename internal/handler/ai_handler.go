@@ -25,16 +25,11 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 		return
 	}
 
-	title := c.PostForm("title")
-	if title == "" {
-		utils.Error(c.Writer, nil, "Judul materi wajib diisi", http.StatusBadRequest)
-		return
-	}
 	pkgID := c.PostForm("package_id")
 	userID, _ := c.Get("user_id")
 	role, _ := c.Get("role") // Ambil Role untuk penanda IsPublic
 
-	resp, err := h.service.IngestPDF(c.Request.Context(), fileHeader, title, pkgID, userID.(string), role.(string))
+	resp, err := h.service.IngestPDF(c.Request.Context(), fileHeader, pkgID, userID.(string), role.(string))
 	if err != nil {
 		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
 		return

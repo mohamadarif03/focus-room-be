@@ -20,7 +20,7 @@ import (
 )
 
 type AIService struct {
-	genaiClient *genai.Client // Client untuk buat model baru secara dinamis
+	genaiClient *genai.Client
 	geminiModel *genai.GenerativeModel
 	matRepo     *repository.MaterialRepository
 	pkgRepo     *repository.PackageRepository
@@ -126,7 +126,7 @@ func (s *AIService) GetMaterials(userIDString, userRole, packageIDString string)
 }
 
 // --- INGEST PDF (AUTO SUMMARY) ---
-func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, title, packageIDStr, userIDString, userRole string) (*dto.MaterialResponse, error) {
+func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHeader, packageIDStr, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
 	pkgID, err := s.validatePackage(packageIDStr, uint(userID))
@@ -148,9 +148,7 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 		return nil, errors.New("PDF ini tidak mengandung teks")
 	}
 
-	// --- AUTO SUMMARY (TEXT MODE) ---
-	// Gunakan instance model BARU khusus untuk text agar tidak merusak settingan JSON global
-	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	inputText := rawText
@@ -205,7 +203,6 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 	}, nil
 }
 
-// --- INGEST YOUTUBE ---
 func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequest, userIDString, userRole string) (*dto.MaterialResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 	var pkgID *uint
@@ -229,7 +226,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		}
 	}
 
-	// Ambil Transkrip (Simple Synchronous)
+	// Ambil Transkrip
 	rawText, err := utils.ExtractTextFromYouTube(req.URL)
 	if err != nil {
 		return nil, fmt.Errorf("gagal mengambil transkrip: %w (pastikan video punya CC/Subtitle)", err)
@@ -237,6 +234,34 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 	if rawText == "" {
 		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
+
+	// --- TAMBAHAN: GENERATE SUMMARY OTOMATIS (Start) ---
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
+	summaryModel.ResponseMIMEType = "text/plain"
+
+	// Potong teks jika terlalu panjang agar hemat token / tidak error
+	inputText := rawText
+	if len(inputText) > 30000 {
+		inputText = inputText[:30000] + "..."
+	}
+
+	prompt := getLecturerPrompt(inputText)
+	summary := ""
+
+	resp, err := summaryModel.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		// Kita log warning saja, jangan return error agar materi tetap tersimpan meski tanpa summary
+		log.Printf("Warning: Gagal auto-summary YouTube: %v", err)
+	} else {
+		if len(resp.Candidates) > 0 {
+			for _, part := range resp.Candidates[0].Content.Parts {
+				if txt, ok := part.(genai.Text); ok {
+					summary += string(txt)
+				}
+			}
+		}
+	}
+	// --- TAMBAHAN: GENERATE SUMMARY OTOMATIS (End) ---
 
 	isPublic := false
 	if userRole == "admin" {
@@ -249,7 +274,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		SourceType:    "youtube",
 		Source:        req.URL,
 		ExtractedText: rawText,
-		Summary:       "",
+		Summary:       summary,
 		PackageID:     pkgID,
 		IsPublic:      isPublic,
 	}
@@ -269,7 +294,6 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 	}, nil
 }
 
-// --- GENERATE SUMMARY (MANUAL) ---
 func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummaryRequest, userIDString string) (*dto.GenerateSummaryResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -285,8 +309,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		}, nil
 	}
 
-	// Gunakan model Text/Plain
-	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	prompt := getLecturerPrompt(material.ExtractedText)
@@ -523,7 +546,6 @@ func (s *AIService) ClaimDailyStreak(userIDString string) error {
 		return errors.New("gagal menambahkan poin streak")
 	}
 
-	// Log Activity untuk Statistik
 	quizLog := &model.QuizLog{
 		UserID:    user.ID,
 		Score:     10,
