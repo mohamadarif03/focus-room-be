@@ -36,6 +36,24 @@ func (r *QuizRepository) CreateWithLimit(quiz *model.Quiz) error {
 }
 
 
+func (r *QuizRepository) GetUserLatestScore(quizID, userID uint) (*int, error) {
+	var attempt model.QuizAttempt
+
+	err := r.db.Select("score").
+		Where("quiz_id = ? AND user_id = ?", quizID, userID).
+		Order("created_at desc").
+		First(&attempt).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &attempt.Score, nil
+}
+
 func (r *QuizRepository) FindAttemptByID(attemptID uint) (*model.QuizAttempt, error) {
 	var attempt model.QuizAttempt
 

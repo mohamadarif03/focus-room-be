@@ -39,10 +39,14 @@ func (s *QuizService) GetQuizzesByMaterial(materialIDString, userIDString, userR
 
 	var response []dto.QuizSimpleResponse
 	for _, q := range quizzes {
+
+		score, _ := s.quizRepo.GetUserLatestScore(q.ID, uint(userID))
+
 		response = append(response, dto.QuizSimpleResponse{
 			ID:            q.ID,
 			CreatedAt:     q.CreatedAt,
 			QuestionCount: len(q.Questions),
+			Score:         score,
 		})
 	}
 
@@ -110,7 +114,6 @@ func (s *QuizService) SubmitQuiz(quizIDString, userIDString string, req dto.Subm
 	}, nil
 }
 
-
 func (s *QuizService) GetAttemptReview(attemptIDString, userIDString string) (*dto.QuizAttemptReviewResponse, error) {
 	attemptID, _ := strconv.ParseUint(attemptIDString, 10, 32)
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
@@ -148,8 +151,8 @@ func (s *QuizService) GetAttemptReview(attemptIDString, userIDString string) (*d
 			ID:            q.ID,
 			Pertanyaan:    q.Pertanyaan,
 			Pilihan:       pilihanItems,
-			UserAnswer:    userAnswer,    
-			CorrectAnswer: q.JawabanBenar, 
+			UserAnswer:    userAnswer,
+			CorrectAnswer: q.JawabanBenar,
 			IsCorrect:     isCorrect,
 		})
 	}

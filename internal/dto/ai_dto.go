@@ -45,6 +45,7 @@ type QuizQuestion struct {
 }
 
 type GenerateQuizResponse struct {
+	ID         int            `json:"id"`
 	MaterialID uint           `json:"material_id"`
 	Questions  []QuizQuestion `json:"questions"`
 }
@@ -70,4 +71,3 @@ type GenerateFlashcardResponse struct {
 	MaterialID uint            `json:"material_id"`
 	Flashcards []FlashcardItem `json:"flashcards"`
 }
-

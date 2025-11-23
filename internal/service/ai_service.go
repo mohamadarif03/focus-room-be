@@ -504,6 +504,7 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	}
 
 	return &dto.GenerateQuizResponse{
+		ID:         int(newQuiz.ID),
 		MaterialID: material.ID,
 		Questions:  responseQuestions,
 	}, nil

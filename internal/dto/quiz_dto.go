@@ -6,6 +6,7 @@ type QuizSimpleResponse struct {
 	ID            uint      `json:"id"`
 	CreatedAt     time.Time `json:"created_at"`
 	QuestionCount int       `json:"question_count"`
+	Score         *int      `json:"score"`
 }
 
 type SubmitQuizRequest struct {
