@@ -17,6 +17,7 @@ import (
 	"github.com/mohamadarif03/focus-room-be/internal/repository"
 	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 	"google.golang.org/api/option"
+	"gorm.io/datatypes"
 )
 
 type AIService struct {
@@ -26,6 +27,7 @@ type AIService struct {
 	pkgRepo     *repository.PackageRepository
 	userRepo    *repository.UserRepository
 	statsRepo   *repository.StatsRepository
+	quizRepo    *repository.QuizRepository
 }
 
 func NewAIService(
@@ -34,6 +36,7 @@ func NewAIService(
 	pkgRepo *repository.PackageRepository,
 	userRepo *repository.UserRepository,
 	statsRepo *repository.StatsRepository,
+	quizRepo *repository.QuizRepository,
 ) (*AIService, error) {
 	if apiKey == "" {
 		return nil, errors.New("GEMINI_API_KEY tidak ditemukan")
@@ -56,10 +59,10 @@ func NewAIService(
 		pkgRepo:     pkgRepo,
 		userRepo:    userRepo,
 		statsRepo:   statsRepo,
+		quizRepo:    quizRepo,
 	}, nil
 }
 
-// --- Helper Validasi Package ---
 func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error) {
 	if pkgIDStr == "" {
 		return nil, nil
@@ -366,7 +369,6 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 	}, nil
 }
 
-// --- GENERATE FLASHCARDS ---
 func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlashcardRequest, userIDString string) (*dto.GenerateFlashcardResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -375,7 +377,6 @@ func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlas
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	// Gunakan s.geminiModel (Default: JSON)
 	prompt := fmt.Sprintf(`
 		Buatkan flashcard (kartu belajar) berdasarkan materi berikut.
 		Format Output HARUS JSON ARRAY MURNI:
@@ -421,24 +422,26 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	prompt := fmt.Sprintf(`
-        Buatkan %d soal latihan pilihan ganda berdasarkan materi berikut.
-        
-        Format Output HARUS JSON ARRAY MURNI dengan key persis seperti ini:
-        [
-            {
-                "pertanyaan": "Tulis pertanyaan di sini?",
-                "pilihan": [
-                    {"key": "A", "value": "Pilihan A"},
-                    {"key": "B", "value": "Pilihan B"},
-                    {"key": "C", "value": "Pilihan C"},
-                    {"key": "D", "value": "Pilihan D"}
-                ],
-                "jawaban_benar": "A"
-            }
-        ]
+	s.geminiModel.ResponseMIMEType = "application/json"
 
-        Materi: %s`, req.QuestionCount, material.ExtractedText)
+	prompt := fmt.Sprintf(`
+		Buatkan %d soal pilihan ganda berdasarkan materi berikut.
+		
+		Format Output HARUS JSON ARRAY MURNI dengan struktur pilihan Key-Value:
+		[
+			{
+				"pertanyaan": "...", 
+				"pilihan": [
+					{"key": "A", "value": "Jawaban A"},
+					{"key": "B", "value": "Jawaban B"},
+					{"key": "C", "value": "Jawaban C"},
+					{"key": "D", "value": "Jawaban D"}
+				],
+				"jawaban_benar": "A"
+			}
+		]
+
+		Materi: %s`, req.QuestionCount, material.ExtractedText)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
@@ -458,15 +461,51 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	quizJSON = strings.TrimPrefix(quizJSON, "```json")
 	quizJSON = strings.TrimSuffix(quizJSON, "```")
 
-	var questions []dto.QuizQuestion
-	if err := json.Unmarshal([]byte(quizJSON), &questions); err != nil {
-		log.Printf("Raw JSON from Gemini: %s", quizJSON)
+	var rawQuestions []dto.QuizQuestion
+	if err := json.Unmarshal([]byte(quizJSON), &rawQuestions); err != nil {
 		return nil, fmt.Errorf("gagal parsing hasil Gemini: %w", err)
 	}
 
+	var dbQuestions []model.QuizQuestion
+	for _, q := range rawQuestions {
+		pilihanJSON, err := json.Marshal(q.Pilihan)
+		if err != nil {
+			continue
+		}
+
+		dbQuestions = append(dbQuestions, model.QuizQuestion{
+			Pertanyaan:   q.Pertanyaan,
+			Pilihan:      datatypes.JSON(pilihanJSON),
+			JawabanBenar: q.JawabanBenar,
+		})
+	}
+
+	newQuiz := &model.Quiz{
+		MaterialID: material.ID,
+		Questions:  dbQuestions,
+	}
+
+	if err := s.quizRepo.CreateWithLimit(newQuiz); err != nil {
+		return nil, fmt.Errorf("gagal menyimpan quiz ke database: %w", err)
+	}
+
+	var responseQuestions []dto.QuizQuestion
+	for _, q := range newQuiz.Questions {
+
+		var pilihanItems []dto.OptionItem
+		json.Unmarshal(q.Pilihan, &pilihanItems)
+
+		responseQuestions = append(responseQuestions, dto.QuizQuestion{
+			ID:           int(q.ID),
+			Pertanyaan:   q.Pertanyaan,
+			Pilihan:      pilihanItems,
+			JawabanBenar: q.JawabanBenar,
+		})
+	}
+
 	return &dto.GenerateQuizResponse{
-		MaterialID: req.MaterialID,
-		Questions:  questions,
+		MaterialID: material.ID,
+		Questions:  responseQuestions,
 	}, nil
 }
 

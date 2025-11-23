@@ -15,6 +15,7 @@ func SetupRouter(
 	aiService *service.AIService,
 	packageService *service.PackageService,
 	statsService *service.StatsService,
+	quizService *service.QuizService,
 ) *gin.Engine {
 
 	r := gin.Default()
@@ -35,6 +36,7 @@ func SetupRouter(
 	aiHandler := handler.NewAIHandler(aiService)
 	packageHandler := handler.NewPackageHandler(packageService)
 	statsHandler := handler.NewStatsHandler(statsService)
+	quizHandler := handler.NewQuizHandler(quizService)
 
 	api := r.Group("/api/v1")
 	{
@@ -54,6 +56,8 @@ func SetupRouter(
 		studentGroup.Use(middleware.AuthMiddleware())
 		studentGroup.Use(middleware.StudentMiddleware())
 		{
+			studentGroup.POST("/quizzes/:id/submit", quizHandler.SubmitQuiz)
+			studentGroup.GET("/quiz-attempts/:id", quizHandler.GetAttemptReview)
 			studentGroup.GET("/stats", statsHandler.GetStats)
 			studentGroup.POST("/focus-log", statsHandler.LogFocus)
 			packageGroup := studentGroup.Group("/packages")
@@ -74,6 +78,7 @@ func SetupRouter(
 
 			materialGroup := studentGroup.Group("/materials")
 			{
+				materialGroup.GET("/:id/quizzes", quizHandler.GetQuizzesByMaterial)
 				materialGroup.GET("", aiHandler.GetMaterials)
 				materialGroup.GET("/:id", aiHandler.GetMaterialDetail)
 				materialGroup.POST("/pdf", aiHandler.IngestPDF)

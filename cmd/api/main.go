@@ -4,10 +4,8 @@ import (
 	// "log"
 	// "os" // Aktifkan jika pakai env
 
-	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
@@ -24,15 +22,11 @@ func main() {
 		log.Println("Info: File .env tidak ditemukan. Menggunakan System Environment Variables (Railway/Docker).")
 	}
 	database.InitDB()
-	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{})
+	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
+		&model.QuizQuestion{}, &model.QuizAttempt{},
+		&model.QuizAttemptDetail{})
 
-	fmt.Println("--- LIST ENV VARIABLES TERDETEKSI ---")
-	for _, e := range os.Environ() {
-		// Kita split biar cuma print NAMA variable-nya saja (KEY), jangan print VALUE-nya
-		pair := strings.SplitN(e, "=", 2)
-		fmt.Println(pair[0])
-	}
-	fmt.Println("-------------------------------------")
+
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 
 	db := database.DB
@@ -42,14 +36,15 @@ func main() {
 	matRepo := repository.NewMaterialRepository(db)
 	pkgRepo := repository.NewPackageRepository(db)
 	statsRepo := repository.NewStatsRepository(db)
+	quizRepo := repository.NewQuizRepository(db)
 
-	// Service
 	userService := service.NewUserService(userRepo, taskRepo)
 	authService := service.NewAuthService(userRepo)
+	quizService := service.NewQuizService(quizRepo, matRepo)
 	taskService := service.NewTaskService(taskRepo, userRepo)
 	pkgService := service.NewPackageService(pkgRepo)
 	statsService := service.NewStatsService(statsRepo)
-	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo, statsRepo)
+	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo, statsRepo, quizRepo)
 
 	r := router.SetupRouter(
 		userService,
@@ -58,6 +53,7 @@ func main() {
 		aiService,
 		pkgService,
 		statsService,
+		quizService,
 	)
 
 	r.Run(":8080")

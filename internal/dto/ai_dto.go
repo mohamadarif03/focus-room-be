@@ -70,3 +70,4 @@ type GenerateFlashcardResponse struct {
 	MaterialID uint            `json:"material_id"`
 	Flashcards []FlashcardItem `json:"flashcards"`
 }
+
