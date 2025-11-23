@@ -33,12 +33,14 @@ type GenerateQuizRequest struct {
 	QuestionCount int  `json:"question_count" binding:"required,min=1,max=10"`
 }
 
-type QuizOption map[string]string
-
+type OptionItem struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
 type QuizQuestion struct {
 	ID           int          `json:"id"`
 	Pertanyaan   string       `json:"pertanyaan"`
-	Pilihan      []QuizOption `json:"pilihan"`
+	Pilihan      []OptionItem `json:"pilihan"`
 	JawabanBenar string       `json:"jawaban_benar"`
 }
 

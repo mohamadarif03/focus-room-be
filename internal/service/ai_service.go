@@ -245,7 +245,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		}
 		pkgID = req.PackageID
 	}
-	
+
 	title := req.Title
 	if title == "" {
 		fetchedTitle, err := utils.GetVideoTitle(req.URL)
@@ -413,7 +413,6 @@ func (s *AIService) GenerateFlashcards(ctx context.Context, req dto.GenerateFlas
 	}, nil
 }
 
-// --- GENERATE QUIZ (CUSTOM) ---
 func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizRequest, userIDString string) (*dto.GenerateQuizResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
@@ -422,11 +421,24 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 		return nil, errors.New("materi tidak ditemukan atau anda tidak punya akses")
 	}
 
-	// Gunakan s.geminiModel (Default: JSON)
 	prompt := fmt.Sprintf(`
-		Buatkan %d soal latihan berdasarkan materi berikut.
-		Output harus JSON Array.
-		Materi: %s`, req.QuestionCount, material.ExtractedText)
+        Buatkan %d soal latihan pilihan ganda berdasarkan materi berikut.
+        
+        Format Output HARUS JSON ARRAY MURNI dengan key persis seperti ini:
+        [
+            {
+                "pertanyaan": "Tulis pertanyaan di sini?",
+                "pilihan": [
+                    {"key": "A", "value": "Pilihan A"},
+                    {"key": "B", "value": "Pilihan B"},
+                    {"key": "C", "value": "Pilihan C"},
+                    {"key": "D", "value": "Pilihan D"}
+                ],
+                "jawaban_benar": "A"
+            }
+        ]
+
+        Materi: %s`, req.QuestionCount, material.ExtractedText)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
@@ -448,6 +460,7 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 
 	var questions []dto.QuizQuestion
 	if err := json.Unmarshal([]byte(quizJSON), &questions); err != nil {
+		log.Printf("Raw JSON from Gemini: %s", quizJSON)
 		return nil, fmt.Errorf("gagal parsing hasil Gemini: %w", err)
 	}
 
@@ -457,7 +470,6 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	}, nil
 }
 
-// --- GET DAILY QUIZ (STATELESS) ---
 func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {

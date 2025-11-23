@@ -105,7 +105,6 @@ func (h *AIHandler) GenerateSummary(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Rangkuman berhasil dibuat", http.StatusOK)
 }
 
-// POST /ai/quiz
 func (h *AIHandler) GenerateQuiz(c *gin.Context) {
 	var req dto.GenerateQuizRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
