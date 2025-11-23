@@ -28,6 +28,7 @@ func main() {
 
 
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+	database.Seed()
 
 	db := database.DB
 
