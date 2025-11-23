@@ -23,6 +23,7 @@ func SetupRouter(
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
 			"http://localhost:5173",
+			"https://catat-inv2.vercel.app",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
@@ -96,6 +97,7 @@ func SetupRouter(
 			{
 				dailyQuizGroup.GET("", aiHandler.GetDailyQuiz)
 				dailyQuizGroup.POST("/claim", aiHandler.ClaimDailyStreak)
+				dailyQuizGroup.GET("/status", aiHandler.GetDailyQuizStatus)
 			}
 
 			streakGroup := studentGroup.Group("/streaks")

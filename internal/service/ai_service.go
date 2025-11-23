@@ -636,3 +636,30 @@ func (s *AIService) ClaimDailyStreak(userIDString string) error {
 	log.Printf("STREAK UP! User %d - Total Streak: %d", userID, user.CurrentStreak)
 	return nil
 }
+
+func (s *AIService) GetDailyQuizStatus(userIDString string) (*dto.DailyQuizStatusResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	user, err := s.userRepo.FindByID(uint(userID))
+	if err != nil {
+		return nil, errors.New("user tidak ditemukan")
+	}
+
+	isDone := false
+	if user.LastStreakAwardedDate != nil {
+		now := time.Now()
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+		lastAward := *user.LastStreakAwardedDate
+		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
+
+		if lastAwardDate.Equal(today) {
+			isDone = true
+		}
+	}
+
+	return &dto.DailyQuizStatusResponse{
+		IsDone: isDone,
+		Streak: user.CurrentStreak,
+	}, nil
+}

@@ -19,7 +19,7 @@ func (r *QuizRepository) CreateWithLimit(quiz *model.Quiz) error {
 		if err := tx.Model(&model.Quiz{}).Where("material_id = ?", quiz.MaterialID).Count(&count).Error; err != nil {
 			return err
 		}
-		if count >= 3 {
+		if count >= 4 {
 			var oldestQuiz model.Quiz
 			if err := tx.Where("material_id = ?", quiz.MaterialID).Order("created_at asc").First(&oldestQuiz).Error; err != nil {
 				return err
@@ -34,7 +34,6 @@ func (r *QuizRepository) CreateWithLimit(quiz *model.Quiz) error {
 		return nil
 	})
 }
-
 
 func (r *QuizRepository) GetUserLatestScore(quizID, userID uint) (*int, error) {
 	var attempt model.QuizAttempt

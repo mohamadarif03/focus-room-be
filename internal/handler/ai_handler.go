@@ -38,7 +38,6 @@ func (h *AIHandler) IngestPDF(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil memproses PDF", http.StatusCreated)
 }
 
-
 func (h *AIHandler) GetMaterialDetail(c *gin.Context) {
 	idStr := c.Param("id")
 	userID, _ := c.Get("user_id")
@@ -180,4 +179,17 @@ func (h *AIHandler) ClaimDailyStreak(c *gin.Context) {
 	}
 
 	utils.Success(c.Writer, nil, "Selamat! Jawaban sempurna. Streak bertambah +1", http.StatusOK)
+}
+
+
+func (h *AIHandler) GetDailyQuizStatus(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	resp, err := h.service.GetDailyQuizStatus(userID.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Berhasil mengambil status daily quiz", http.StatusOK)
 }
