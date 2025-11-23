@@ -26,11 +26,26 @@ func main() {
 		&model.QuizQuestion{}, &model.QuizAttempt{},
 		&model.QuizAttemptDetail{})
 
-
-	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
-
 	db := database.DB
 
+	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+	query := `
+			TRUNCATE TABLE 
+				users, 
+				materials, 
+				packages, 
+				quizzes, 
+				quiz_questions, 
+				quiz_attempts, 
+				tasks 
+			RESTART IDENTITY CASCADE;
+		`
+
+	if err := db.Exec(query).Error; err != nil {
+		log.Fatalf("Gagal mereset database: %v", err)
+	}
+
+	log.Println("Sukses! Semua data telah dihapus bersih.")
 	userRepo := repository.NewUserRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
 	matRepo := repository.NewMaterialRepository(db)
