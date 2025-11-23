@@ -24,6 +24,7 @@ func SetupRouter(
 		AllowOrigins: []string{
 			"http://localhost:5173",
 			"https://catat-inv2.vercel.app",
+			"https://rangkuminai.vercel.app",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},

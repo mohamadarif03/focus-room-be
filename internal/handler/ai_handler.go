@@ -156,7 +156,6 @@ func (h *AIHandler) GetDailyQuiz(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil mengambil Daily Quiz", http.StatusOK)
 }
 
-// POST /daily-quiz/claim
 func (h *AIHandler) ClaimDailyStreak(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -166,7 +165,6 @@ func (h *AIHandler) ClaimDailyStreak(c *gin.Context) {
 		return
 	}
 
-	// Validasi Logic: Backend hanya menerima jika score == 10 (Benar Semua)
 	if req.Score != 10 {
 		utils.Error(c.Writer, nil, "Anda harus menjawab semua soal dengan benar untuk klaim streak!", http.StatusBadRequest)
 		return
@@ -180,7 +178,6 @@ func (h *AIHandler) ClaimDailyStreak(c *gin.Context) {
 
 	utils.Success(c.Writer, nil, "Selamat! Jawaban sempurna. Streak bertambah +1", http.StatusOK)
 }
-
 
 func (h *AIHandler) GetDailyQuizStatus(c *gin.Context) {
 	userID, _ := c.Get("user_id")

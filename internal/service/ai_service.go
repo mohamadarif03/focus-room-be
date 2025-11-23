@@ -593,7 +593,6 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 	}, nil
 }
 
-// --- CLAIM STREAK ---
 func (s *AIService) ClaimDailyStreak(userIDString string) error {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
