@@ -22,6 +22,7 @@ func SetupRouter(
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
+			"http://localhost:5173",
 			"http://localhost:5174",
 			"https://catat-inv2.vercel.app",
 			"https://rangkuminai.vercel.app",
