@@ -52,10 +52,10 @@ func (h *QuizHandler) SubmitQuiz(c *gin.Context) {
 }
 
 func (h *QuizHandler) GetAttemptReview(c *gin.Context) {
-	attemptID := c.Param("id")
+	quizId := c.Param("id")
 	userID, _ := c.Get("user_id")
 
-	resp, err := h.service.GetAttemptReview(attemptID, userID.(string))
+	resp, err := h.service.GetAttemptReview(quizId, userID.(string))
 	if err != nil {
 		utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
 		return

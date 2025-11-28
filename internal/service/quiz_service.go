@@ -114,11 +114,11 @@ func (s *QuizService) SubmitQuiz(quizIDString, userIDString string, req dto.Subm
 	}, nil
 }
 
-func (s *QuizService) GetAttemptReview(attemptIDString, userIDString string) (*dto.QuizAttemptReviewResponse, error) {
-	attemptID, _ := strconv.ParseUint(attemptIDString, 10, 32)
+func (s *QuizService) GetAttemptReview(quizIdString, userIDString string) (*dto.QuizAttemptReviewResponse, error) {
+	quizId, _ := strconv.ParseUint(quizIdString, 10, 32)
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
-	attempt, err := s.quizRepo.FindAttemptByID(uint(attemptID))
+	attempt, err := s.quizRepo.FindAttemptByQuizID(uint(quizId))
 	if err != nil {
 		return nil, errors.New("riwayat quiz tidak ditemukan")
 	}

@@ -66,12 +66,16 @@ func (r *QuizRepository) FindAttemptByID(attemptID uint) (*model.QuizAttempt, er
 	return &attempt, err
 }
 
-func (r *QuizRepository) FindAttemptsByQuizID(quizID, userID uint) ([]model.QuizAttempt, error) {
-	var attempts []model.QuizAttempt
-	err := r.db.Where("quiz_id = ? AND user_id = ?", quizID, userID).
+func (r *QuizRepository) FindAttemptByQuizID(quizID uint) (*model.QuizAttempt, error) {
+	var attempt model.QuizAttempt
+	err := r.db.
+		Preload("Answers").
+		Preload("Quiz.Questions").
+		Preload("Quiz.Material").
+		Where("quiz_id = ?", quizID).
 		Order("created_at desc").
-		Find(&attempts).Error
-	return attempts, err
+		First(&attempt).Error
+	return &attempt, err
 }
 
 func (r *QuizRepository) FindAllByMaterialID(materialID uint) ([]model.Quiz, error) {
