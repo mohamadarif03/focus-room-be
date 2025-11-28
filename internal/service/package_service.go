@@ -84,7 +84,6 @@ func (s *PackageService) AdminCreatePackage(req dto.AdminCreatePackageRequest, a
 	}, nil
 }
 
-
 func (s *PackageService) GetPackageWithMaterials(idString, userIDString string) (*dto.PackageWithMaterialsResponse, error) {
 	id, err := strconv.ParseUint(idString, 10, 32)
 	if err != nil {
@@ -103,6 +102,7 @@ func (s *PackageService) GetPackageWithMaterials(idString, userIDString string) 
 			ID:         m.ID,
 			Title:      m.Title,
 			SourceType: m.SourceType,
+			CreatedAt:  m.CreatedAt,
 		})
 	}
 
@@ -127,7 +127,6 @@ func (s *PackageService) GetMyPackages(userIDString string) ([]dto.PackageRespon
 	}
 	return responses, nil
 }
-
 
 func (s *PackageService) UpdatePackage(idStr, userIDString string, req dto.PackageRequest) (*dto.PackageResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)

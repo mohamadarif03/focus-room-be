@@ -34,7 +34,8 @@ type PackageWithMaterialsResponse struct {
 }
 
 type MaterialSimple struct {
-	ID         uint   `json:"id"`
-	Title      string `json:"title"`
-	SourceType string `json:"source_type"`
+	ID         uint      `json:"id"`
+	Title      string    `json:"title"`
+	SourceType string    `json:"source_type"`
+	CreatedAt  time.Time `json:"created_at"`
 }

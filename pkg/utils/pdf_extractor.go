@@ -1,49 +1,47 @@
 package utils
 
 import (
-    "bytes"
-    "fmt"
-    "io"
-    "mime/multipart"
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
 
-    "github.com/ledongthuc/pdf" // Gunakan library ini
+	"github.com/ledongthuc/pdf"
 )
 
 func ExtractTextFromPDF(file multipart.File, fileSize int64) (string, error) {
-    // 1. Salin file ke bytes buffer karena library butuh ReaderAt
-    buf := new(bytes.Buffer)
-    if _, err := io.Copy(buf, file); err != nil {
-        return "", fmt.Errorf("gagal copy buffer: %w", err)
-    }
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, file); err != nil {
+		return "", fmt.Errorf("gagal menyalin file ke buffer: %w", err)
+	}
 
-    // 2. Buat Reader
-    readerAt := bytes.NewReader(buf.Bytes())
-    r, err := pdf.NewReader(readerAt, int64(buf.Len()))
-    if err != nil {
-        return "", fmt.Errorf("gagal init pdf reader: %w", err)
-    }
+	readerAt := bytes.NewReader(buf.Bytes())
 
-    // 3. Baca teks per halaman
-    var text string
-    totalPage := r.NumPage()
+	r, err := pdf.NewReader(readerAt, fileSize)
+	if err != nil {
+		return "", fmt.Errorf("gagal init pdf reader: %w", err)
+	}
 
-    for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
-        p := r.Page(pageIndex)
-        if p.V.IsNull() {
-            continue
-        }
-        
-        content, err := p.GetPlainText(nil)
-        if err != nil {
-            // Log error per halaman tapi jangan stop total, lanjut ke halaman berikutnya
-            continue 
-        }
-        text += content + "\n"
-    }
+	var textBuilder string
 
-    if text == "" {
-        return "", fmt.Errorf("teks kosong, kemungkinan PDF berupa gambar/scan")
-    }
+	numPages := r.NumPage()
+	for i := 1; i <= numPages; i++ {
+		p := r.Page(i)
+		if p.V.IsNull() {
+			continue
+		}
 
-    return text, nil
+		content, err := p.GetPlainText(nil)
+		if err != nil {
+			continue
+		}
+
+		textBuilder += content + "\n"
+	}
+
+	if textBuilder == "" {
+		return "", fmt.Errorf("gagal mengekstrak teks: hasil kosong (mungkin PDF berupa gambar/scan)")
+	}
+
+	return textBuilder, nil
 }
