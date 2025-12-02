@@ -64,7 +64,11 @@ func (r *PackageRepository) FindByID(id, userID uint) (*model.Package, error) {
 
 func (r *PackageRepository) FindAllByUserID(userID uint) ([]model.Package, error) {
 	var pkgs []model.Package
-	err := r.db.Where("user_id = ?", userID).Find(&pkgs).Error
+
+	err := r.db.Preload("Materials", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id", "package_id")
+	}).Where("user_id = ?", userID).Order("created_at desc").Find(&pkgs).Error
+
 	return pkgs, err
 }
 

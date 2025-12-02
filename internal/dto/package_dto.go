@@ -8,11 +8,12 @@ type PackageRequest struct {
 }
 
 type PackageResponse struct {
-	ID        uint      `json:"id"`
-	Title     string    `json:"title"`
-	ColorIcon string    `json:"colorIcon"`
-	UserID    uint      `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            uint      `json:"id"`
+	Title         string    `json:"title"`
+	ColorIcon     string    `json:"colorIcon"`
+	UserID        uint      `json:"user_id"`
+	MaterialCount int       `json:"material_count"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 type AdminMaterialRequest struct {
 	Title      string `json:"title" binding:"required"`

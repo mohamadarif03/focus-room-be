@@ -114,18 +114,29 @@ func (s *PackageService) GetPackageWithMaterials(idString, userIDString string) 
 	}, nil
 }
 func (s *PackageService) GetMyPackages(userIDString string) ([]dto.PackageResponse, error) {
-	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+	userID, err := strconv.ParseUint(userIDString, 10, 32)
+	if err != nil {
+		return nil, errors.New("user ID tidak valid")
+	}
 
 	pkgs, err := s.pkgRepo.FindAllByUserID(uint(userID))
 	if err != nil {
-		return nil, errors.New("gagal mengambil packages")
+		return nil, err
 	}
 
-	var responses []dto.PackageResponse
-	for _, pkg := range pkgs {
-		responses = append(responses, packageToResponse(&pkg))
+	var response []dto.PackageResponse
+	for _, p := range pkgs {
+		response = append(response, dto.PackageResponse{
+			ID:            p.ID,
+			Title:         p.Title,
+			ColorIcon:     p.ColorIcon,
+			UserID:        p.UserID,
+			CreatedAt:     p.CreatedAt,
+			MaterialCount: len(p.Materials),
+		})
 	}
-	return responses, nil
+
+	return response, nil
 }
 
 func (s *PackageService) UpdatePackage(idStr, userIDString string, req dto.PackageRequest) (*dto.PackageResponse, error) {
