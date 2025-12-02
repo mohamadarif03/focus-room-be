@@ -29,6 +29,7 @@ func taskToResponse(task *model.Task) dto.TaskResponse {
 		Title:     task.Title,
 		Context:   task.Context,
 		Priority:  task.Priority,
+		StartDate: task.StartDate,
 		TaskDate:  task.TaskDate,
 		Completed: task.Completed,
 		UserID:    task.UserID,
@@ -43,12 +44,22 @@ func (s *TaskService) CreateTask(req dto.CreateTaskRequest, userIDString string)
 
 	taskDate, err := time.Parse(time.RFC3339, req.TaskDate)
 	if err != nil {
-		return nil, errors.New("format tanggal tidak valid, gunakan format ISO 8601 (RFC3339)")
+		return nil, errors.New("format tanggal task_date tidak valid (ISO 8601)")
+	}
+
+	var startDate *time.Time
+	if req.StartDate != "" {
+		parsedStart, err := time.Parse(time.RFC3339, req.StartDate)
+		if err != nil {
+			return nil, errors.New("format tanggal start_date tidak valid (ISO 8601)")
+		}
+		startDate = &parsedStart
 	}
 
 	newTask := model.Task{
 		Title:     req.Title,
 		Context:   req.Context,
+		StartDate: startDate,
 		TaskDate:  taskDate,
 		Priority:  req.Priority,
 		Completed: false,
@@ -99,6 +110,7 @@ func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req d
 		return nil, errors.New("user ID tidak valid")
 	}
 	taskID, err := strconv.ParseUint(taskIDString, 10, 32)
+
 	if err != nil {
 		return nil, errors.New("task ID tidak valid")
 	}
@@ -119,6 +131,12 @@ func (s *TaskService) UpdateTask(taskIDString string, userIDString string, req d
 	task.Context = req.Context
 	task.Priority = req.Priority
 	task.Completed = req.Completed
+	if req.StartDate != "" {
+		parsedStart, err := time.Parse(time.RFC3339, req.StartDate)
+		if err == nil {
+			task.StartDate = &parsedStart
+		}
+	} 
 
 	updatedTask, err := s.taskRepo.UpdateTask(task)
 	if err != nil {

@@ -9,6 +9,7 @@ type Task struct {
 	Title     string    `gorm:"size:255;not null" json:"title"`
 	Context   string    `gorm:"size:100;null" json:"context"`
 	Priority  string    `gorm:"size:50;default:'medium'" json:"priority"`
+	StartDate *time.Time `gorm:"not null" json:"start_date"`
 	TaskDate  time.Time `gorm:"not null" json:"task_date"`
 	Completed bool      `gorm:"default:false" json:"completed"`
 	UserID    uint      `gorm:"not null" json:"user_id"`

@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/mohamadarif03/focus-room-be/internal/handler"
@@ -24,13 +26,13 @@ func SetupRouter(
 		AllowOrigins: []string{
 			"http://localhost:5173",
 			"http://localhost:5174",
-			"https://catat-inv2.vercel.app",
 			"https://rangkuminai.vercel.app",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}))
 
 	userHandler := handler.NewUserHandler(userService)
@@ -73,8 +75,8 @@ func SetupRouter(
 			}
 			taskGroup := studentGroup.Group("/tasks")
 			{
-				taskGroup.POST("/", taskHandler.CreateTask)
-				taskGroup.GET("/", taskHandler.GetTasks)
+				taskGroup.POST("", taskHandler.CreateTask)
+				taskGroup.GET("", taskHandler.GetTasks)
 				taskGroup.PUT("/:id", taskHandler.UpdateTask)
 				taskGroup.DELETE("/:id", taskHandler.DeleteTask)
 			}
