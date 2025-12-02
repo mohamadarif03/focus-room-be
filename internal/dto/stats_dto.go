@@ -10,3 +10,12 @@ type StatsResponse struct {
 type LogFocusRequest struct {
 	Duration int `json:"duration" binding:"required,min=1"`
 }
+
+type StartFocusResponse struct {
+	SessionID uint `json:"session_id"`
+}
+
+type UpdateFocusRequest struct {
+	SessionID uint `json:"session_id" binding:"required"`
+	Duration  int  `json:"duration" binding:"required"`
+}

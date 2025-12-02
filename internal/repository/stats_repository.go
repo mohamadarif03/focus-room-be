@@ -15,15 +15,21 @@ func NewStatsRepository(db *gorm.DB) *StatsRepository {
 	return &StatsRepository{db: db}
 }
 
-
 func (r *StatsRepository) CreateFocusSession(session *model.FocusSession) error {
 	return r.db.Create(session).Error
+}
+
+func (r *StatsRepository) UpdateFocusDuration(sessionID, userID uint, duration int) error {
+	result := r.db.Model(&model.FocusSession{}).
+		Where("id = ? AND user_id = ?", sessionID, userID).
+		Update("duration", duration)
+
+	return result.Error
 }
 
 func (r *StatsRepository) CreateQuizLog(log *model.QuizLog) error {
 	return r.db.Create(log).Error
 }
-
 
 func (r *StatsRepository) SumStudyMinutes(userID uint, startDate, endDate *time.Time) (int64, error) {
 	var totalMinutes int64

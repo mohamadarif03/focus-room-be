@@ -64,6 +64,8 @@ func SetupRouter(
 			studentGroup.POST("/quizzes/:id/submit", quizHandler.SubmitQuiz)
 			studentGroup.GET("/quiz-attempts/:id", quizHandler.GetAttemptReview)
 			studentGroup.GET("/stats", statsHandler.GetStats)
+			studentGroup.POST("/focus/start", statsHandler.StartFocus)
+			studentGroup.PUT("/focus/update", statsHandler.UpdateFocus)
 			studentGroup.POST("/focus-log", statsHandler.LogFocus)
 			packageGroup := studentGroup.Group("/packages")
 			{

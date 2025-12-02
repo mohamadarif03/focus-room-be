@@ -24,8 +24,8 @@ func main() {
 	database.InitDB()
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
 		&model.QuizQuestion{}, &model.QuizAttempt{},
-		&model.QuizAttemptDetail{})
-
+		&model.QuizAttemptDetail{}, &model.FocusSession{},
+		&model.QuizLog{})
 
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 	database.Seed()

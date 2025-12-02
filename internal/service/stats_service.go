@@ -31,7 +31,6 @@ func (s *StatsService) LogFocusSession(userIDString string, req dto.LogFocusRequ
 	return s.statsRepo.CreateFocusSession(session)
 }
 
-// Mengambil Dashboard Stats
 func (s *StatsService) GetUserStats(userIDString, filter string) (*dto.StatsResponse, error) {
 	userID, err := strconv.ParseUint(userIDString, 10, 32)
 	if err != nil {
@@ -39,7 +38,6 @@ func (s *StatsService) GetUserStats(userIDString, filter string) (*dto.StatsResp
 	}
 	uID := uint(userID)
 
-	// 1. Tentukan Filter Tanggal
 	var startDate, endDate *time.Time
 	now := time.Now()
 
@@ -58,21 +56,19 @@ func (s *StatsService) GetUserStats(userIDString, filter string) (*dto.StatsResp
 		start := now.AddDate(-1, 0, 0)
 		startDate, endDate = &start, &now
 	default:
-		// "all" -> biarkan nil
 		startDate, endDate = nil, nil
 	}
 
-	// 2. Ambil Data Paralel (Sequential juga cepat)
 	totalMinutes, err := s.statsRepo.SumStudyMinutes(uID, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	tasksCompleted, err := s.statsRepo.CountCompletedTasks(uID, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	quizzesTaken, err := s.statsRepo.CountQuizzesTaken(uID, startDate, endDate)
 	if err != nil {
 		return nil, err
@@ -106,4 +102,28 @@ func (s *StatsService) GetUserStats(userIDString, filter string) (*dto.StatsResp
 		QuizzesTaken:      quizzesTaken,
 		MostProductiveDay: mostProdDay,
 	}, nil
+}
+
+func (s *StatsService) StartFocusSession(userIDString string) (*dto.StartFocusResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	session := &model.FocusSession{
+		UserID:    uint(userID),
+		Duration:  0,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.statsRepo.CreateFocusSession(session); err != nil {
+		return nil, err
+	}
+
+	return &dto.StartFocusResponse{
+		SessionID: session.ID,
+	}, nil
+}
+
+func (s *StatsService) UpdateFocusSession(userIDString string, req dto.UpdateFocusRequest) error {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	return s.statsRepo.UpdateFocusDuration(req.SessionID, uint(userID), req.Duration)
 }

@@ -46,3 +46,33 @@ func (h *StatsHandler) LogFocus(c *gin.Context) {
 
 	utils.Success(c.Writer, nil, "Sesi fokus berhasil dicatat", http.StatusCreated)
 }
+
+func (h *StatsHandler) StartFocus(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	resp, err := h.service.StartFocusSession(userID.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Sesi fokus dimulai", http.StatusCreated)
+}
+
+func (h *StatsHandler) UpdateFocus(c *gin.Context) {
+	var req dto.UpdateFocusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, "Data tidak valid", http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+
+	err := h.service.UpdateFocusSession(userID.(string), req)
+	if err != nil {
+		utils.Error(c.Writer, nil, "Gagal mengupdate sesi (Mungkin sesi tidak ditemukan)", http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, nil, "Sesi berhasil diupdate", http.StatusOK)
+}
