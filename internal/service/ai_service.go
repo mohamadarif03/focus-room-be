@@ -662,3 +662,4 @@ func (s *AIService) GetDailyQuizStatus(userIDString string) (*dto.DailyQuizStatu
 		Streak: user.CurrentStreak,
 	}, nil
 }
+

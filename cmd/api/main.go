@@ -9,6 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mohamadarif03/focus-room-be/internal/database"
+	"github.com/mohamadarif03/focus-room-be/internal/handler"
 
 	// "github.com/mohamadarif03/focus-room-be/internal/handler" // Import Handler
 	"github.com/mohamadarif03/focus-room-be/internal/model"
@@ -25,7 +26,7 @@ func main() {
 	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
 		&model.QuizQuestion{}, &model.QuizAttempt{},
 		&model.QuizAttemptDetail{}, &model.FocusSession{},
-		&model.QuizLog{})
+		&model.QuizLog{}, &model.MaterialChat{})
 
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 	database.Seed()
@@ -38,6 +39,7 @@ func main() {
 	pkgRepo := repository.NewPackageRepository(db)
 	statsRepo := repository.NewStatsRepository(db)
 	quizRepo := repository.NewQuizRepository(db)
+	chatRepo := repository.NewChatRepository(db)
 
 	userService := service.NewUserService(userRepo, taskRepo)
 	authService := service.NewAuthService(userRepo)
@@ -46,6 +48,12 @@ func main() {
 	pkgService := service.NewPackageService(pkgRepo)
 	statsService := service.NewStatsService(statsRepo)
 	aiService, _ := service.NewAIService(geminiAPIKey, matRepo, pkgRepo, userRepo, statsRepo, quizRepo)
+	chatService, err := service.NewChatService(geminiAPIKey, chatRepo, matRepo)
+	if err != nil {
+		log.Fatal("Gagal init Chat Service")
+	}
+
+	chatHandler := handler.NewChatHandler(chatService)
 
 	r := router.SetupRouter(
 		userService,
@@ -55,6 +63,7 @@ func main() {
 		pkgService,
 		statsService,
 		quizService,
+		chatHandler,
 	)
 
 	r.Run(":8080")

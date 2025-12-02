@@ -18,6 +18,7 @@ func SetupRouter(
 	packageService *service.PackageService,
 	statsService *service.StatsService,
 	quizService *service.QuizService,
+	chatHandler *handler.ChatHandler,
 ) *gin.Engine {
 
 	r := gin.Default()
@@ -95,6 +96,8 @@ func SetupRouter(
 			aiGroup := studentGroup.Group("/ai")
 			{
 				aiGroup.POST("/summarize", aiHandler.GenerateSummary)
+				aiGroup.POST("/chat", chatHandler.SendChat)
+				aiGroup.GET("/chat", chatHandler.GetHistory)
 				aiGroup.POST("/quiz", aiHandler.GenerateQuiz)
 				aiGroup.POST("/flashcards", aiHandler.GenerateFlashcards)
 			}

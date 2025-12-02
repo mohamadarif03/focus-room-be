@@ -71,3 +71,20 @@ type GenerateFlashcardResponse struct {
 	MaterialID uint            `json:"material_id"`
 	Flashcards []FlashcardItem `json:"flashcards"`
 }
+type ChatRequest struct {
+	MaterialID uint   `json:"material_id" binding:"required"`
+	Message    string `json:"message" binding:"required"`
+}
+
+type ChatResponse struct {
+	ID        uint      `json:"id"`
+	Reply     string    `json:"reply"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ChatHistoryItem struct {
+	ID        uint      `json:"id"`
+	Role      string    `json:"role"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
