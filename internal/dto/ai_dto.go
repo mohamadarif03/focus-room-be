@@ -88,3 +88,9 @@ type ChatHistoryItem struct {
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type UpdateMaterialRequest struct {
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	PackageID *uint  `json:"package_id"`
+}

@@ -49,7 +49,7 @@ func NewAIService(
 	}
 
 	// Model Utama (Default JSON untuk Quiz/Flashcard)
-	model := client.GenerativeModel("gemini-2.5-flash")
+	model := client.GenerativeModel("gemini-2.5-pro")
 	model.ResponseMIMEType = "application/json"
 
 	return &AIService{
@@ -155,7 +155,12 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 		return nil, errors.New("PDF ini tidak mengandung teks")
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
+	if strings.Contains(rawText, "\x00") {
+		log.Println("Mendeteksi Null Byte pada PDF, membersihkan...")
+		rawText = strings.ReplaceAll(rawText, "\x00", "")
+	}
+
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	inputText := rawText
@@ -268,7 +273,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	inputText := rawText
@@ -338,7 +343,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		}, nil
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	prompt := getLecturerPrompt(material.ExtractedText)
@@ -663,3 +668,58 @@ func (s *AIService) GetDailyQuizStatus(userIDString string) (*dto.DailyQuizStatu
 	}, nil
 }
 
+func (s *AIService) UpdateMaterial(idString, userIDString, userRole string, req dto.UpdateMaterialRequest) (*dto.MaterialResponse, error) {
+	id, _ := strconv.ParseUint(idString, 10, 32)
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	material, err := s.matRepo.FindOneAccessible(uint(id), uint(userID), userRole)
+	if err != nil {
+		return nil, errors.New("materi tidak ditemukan")
+	}
+
+	if material.UserID != uint(userID) {
+		return nil, errors.New("anda tidak memiliki izin mengedit materi ini")
+	}
+
+	if req.Title != "" {
+		material.Title = req.Title
+	}
+	if req.Content != "" {
+		material.ExtractedText = req.Content
+	}
+	if req.PackageID != nil {
+		if _, err := s.validatePackage(fmt.Sprint(*req.PackageID), uint(userID)); err == nil {
+			material.PackageID = req.PackageID
+		}
+	}
+
+	if err := s.matRepo.Update(material); err != nil {
+		return nil, err
+	}
+
+	pkgTitle := ""
+	if material.PackageID != nil {
+	}
+
+	return &dto.MaterialResponse{
+		ID:            material.ID,
+		Title:         material.Title,
+		SourceType:    material.SourceType,
+		Source:        material.Source,
+		Summary:       material.Summary,
+		IsPublic:      material.IsPublic,
+		PackageTitle:  pkgTitle,
+		CreatedAt:     material.CreatedAt,
+	}, nil
+}
+
+func (s *AIService) DeleteMaterial(idString, userIDString, userRole string) error {
+	id, _ := strconv.ParseUint(idString, 10, 32)
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+
+	err := s.matRepo.Delete(uint(id), uint(userID), userRole)
+	if err != nil {
+		return errors.New("gagal menghapus materi (mungkin tidak ditemukan atau bukan milik anda)")
+	}
+	return nil
+}

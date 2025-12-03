@@ -89,6 +89,8 @@ func SetupRouter(
 				materialGroup.GET("/:id/quizzes", quizHandler.GetQuizzesByMaterial)
 				materialGroup.GET("", aiHandler.GetMaterials)
 				materialGroup.GET("/:id", aiHandler.GetMaterialDetail)
+				materialGroup.PUT("/:id", aiHandler.UpdateMaterial)
+				materialGroup.DELETE("/:id", aiHandler.DeleteMaterial)
 				materialGroup.POST("/pdf", aiHandler.IngestPDF)
 				materialGroup.POST("/youtube", aiHandler.IngestYouTube)
 			}

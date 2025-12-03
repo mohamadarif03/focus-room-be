@@ -76,3 +76,23 @@ func (r *MaterialRepository) CountByUserID(userID uint) (int64, error) {
 	err := r.db.Model(&model.Material{}).Where("user_id = ?", userID).Count(&count).Error
 	return count, err
 }
+
+func (r *MaterialRepository) Delete(id, userID uint, userRole string) error {
+	query := r.db.Where("id = ?", id)
+
+	if userRole == "admin" {
+		query = query.Where("user_id = ?", userID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	result := query.Unscoped().Delete(&model.Material{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
