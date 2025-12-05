@@ -63,7 +63,7 @@ func (s *ChatService) SendChat(ctx context.Context, req dto.ChatRequest, userIDS
 
 	prompt := fmt.Sprintf(`
 		Kamu adalah asisten belajar. Jawab pertanyaan user berdasarkan materi berikut.
-		Jika jawaban tidak ada di materi, katakan "Maaf, tidak ada info tersebut di materi ini."
+		Jika jawaban tidak ada di materi, katakan carikan jawaban dari sumber lain namun jelaskan bahwa pertanyaan tersebut tidak ada di materi jadi jawaban yang kamu berikan menggunakan sumber lain. tolong untuk bahasanya sesuaikan dengan pertantyaannya ya, jika pertanyaan pake indonesia, jawab dengan bahasa indonesia, jika dengan bahasa inggris jawab dg bahasa inggris. 
 		
 		=== MATERI ===
 		%s
@@ -82,7 +82,6 @@ func (s *ChatService) SendChat(ctx context.Context, req dto.ChatRequest, userIDS
 	} else if len(resp.Candidates) == 0 {
 		aiReply = "Maaf, AI tidak memberikan respon."
 	} else {
-		// Jika sukses, ambil isinya
 		for _, part := range resp.Candidates[0].Content.Parts {
 			if txt, ok := part.(genai.Text); ok {
 				aiReply += string(txt)

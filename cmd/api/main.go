@@ -23,10 +23,19 @@ func main() {
 		log.Println("Info: File .env tidak ditemukan. Menggunakan System Environment Variables (Railway/Docker).")
 	}
 	database.InitDB()
-	database.DB.AutoMigrate(&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
+	database.DB.Migrator().DropTable(
+		&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
 		&model.QuizQuestion{}, &model.QuizAttempt{},
 		&model.QuizAttemptDetail{}, &model.FocusSession{},
-		&model.QuizLog{}, &model.MaterialChat{})
+		&model.QuizLog{}, &model.MaterialChat{},
+	)
+
+	// database.DB.AutoMigrate(
+	// 	&model.User{}, &model.Task{}, &model.Material{}, &model.Package{}, &model.Quiz{},
+	// 	&model.QuizQuestion{}, &model.QuizAttempt{},
+	// 	&model.QuizAttemptDetail{}, &model.FocusSession{},
+	// 	&model.QuizLog{}, &model.MaterialChat{},
+	// )
 
 	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
 	database.Seed()
