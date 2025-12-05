@@ -91,18 +91,27 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 func (h *UserHandler) CheckAndUpdateStreak(c *gin.Context) {
 	userIDString, exists := c.Get("user_id")
 	if !exists {
-		utils.Error(c.Writer, nil, "Gagal mendapatkan user ID dari token", http.StatusInternalServerError)
+		utils.Error(c.Writer, nil, "Gagal mendapatkan user ID dari token", http.StatusUnauthorized)
 		return
 	}
 
 	_, err := h.service.CheckAndUpdateStreak(userIDString.(string))
 	if err != nil {
+		if err.Error() == "user tidak ditemukan" {
+			utils.Error(c.Writer, nil, "User tidak valid atau tidak ditemukan", http.StatusUnauthorized)
+			return
+		}
+
 		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	response, err := h.service.GetSelf(userIDString.(string))
 	if err != nil {
+		if err.Error() == "user tidak ditemukan" {
+			utils.Error(c.Writer, nil, "User tidak ditemukan", http.StatusUnauthorized)
+			return
+		}
 		utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
 		return
 	}
