@@ -516,20 +516,17 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 }
 
 func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
-	userID, err := strconv.ParseUint(userIDString, 10, 32)
-	if err != nil {
-		return nil, errors.New("user ID tidak valid")
-	}
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
 	user, err := s.userRepo.FindByID(uint(userID))
 	if err != nil {
 		return nil, errors.New("user tidak ditemukan")
 	}
 
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-
 	if user.LastStreakAwardedDate != nil {
+		now := time.Now()
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
 		lastAward := *user.LastStreakAwardedDate
 		lastAwardDate := time.Date(lastAward.Year(), lastAward.Month(), lastAward.Day(), 0, 0, 0, 0, time.Local)
 
@@ -552,21 +549,53 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 	}
 
 	var combinedText strings.Builder
+
 	for _, m := range materials {
-		combinedText.WriteString(m.ExtractedText)
-		combinedText.WriteString("\n\n")
-	}
-	finalText := combinedText.String()
-	if len(finalText) > 12000 {
-		finalText = finalText[:12000]
+		textToUse := ""
+
+		if m.Summary != "" && len(m.Summary) > 50 {
+			textToUse = m.Summary
+		} else {
+			if len(m.ExtractedText) > 4000 {
+				textToUse = m.ExtractedText[:4000] + "..."
+			} else {
+				textToUse = m.ExtractedText
+			}
+		}
+
+		combinedText.WriteString(fmt.Sprintf("\n--- Topik: %s ---\n", m.Title))
+		combinedText.WriteString(textToUse)
+		combinedText.WriteString("\n")
 	}
 
-	// Gunakan s.geminiModel (Default: JSON)
+	finalText := combinedText.String()
+
+	if len(finalText) > 15000 {
+		finalText = finalText[:15000]
+	}
+
+	s.geminiModel.ResponseMIMEType = "application/json"
+
 	prompt := fmt.Sprintf(`
-		Buatkan 10 soal pilihan ganda berdasarkan teks gabungan ini.
-		Format Output HARUS JSON ARRAY (Strict JSON):
-		[{"id": 1, "pertanyaan": "...", "pilihan": [{"A": ".."}], "jawaban_benar": "A"}]
-		Materi: %s
+		Buatkan 10 soal pilihan ganda yang menguji pemahaman konsep dari rangkuman materi-materi berikut.
+		
+		Format Output HARUS JSON ARRAY MURNI (Strict JSON):
+		[
+			{
+				"id": 1,
+				"pertanyaan": "Pertanyaan yang jelas...",
+				"pilihan": [
+					{"key": "A", "value": "Jawaban A"}, 
+					{"key": "B", "value": "Jawaban B"}, 
+					{"key": "C", "value": "Jawaban C"}, 
+					{"key": "D", "value": "Jawaban D"}
+				],
+				"jawaban_benar": "A"
+			}
+		]
+
+		Materi Gabungan:
+		%s
 	`, finalText)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
@@ -589,7 +618,8 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 
 	var checkJSON []map[string]interface{}
 	if err := json.Unmarshal([]byte(quizJSON), &checkJSON); err != nil {
-		return nil, errors.New("AI menghasilkan format soal yang tidak valid, silakan coba lagi")
+		log.Printf("Gagal parsing JSON Daily Quiz: %v | Raw: %s", err, quizJSON)
+		return nil, errors.New("AI gagal generate soal yang valid, silakan coba lagi")
 	}
 
 	return &dto.DailyQuizResponse{
@@ -702,14 +732,14 @@ func (s *AIService) UpdateMaterial(idString, userIDString, userRole string, req 
 	}
 
 	return &dto.MaterialResponse{
-		ID:            material.ID,
-		Title:         material.Title,
-		SourceType:    material.SourceType,
-		Source:        material.Source,
-		Summary:       material.Summary,
-		IsPublic:      material.IsPublic,
-		PackageTitle:  pkgTitle,
-		CreatedAt:     material.CreatedAt,
+		ID:           material.ID,
+		Title:        material.Title,
+		SourceType:   material.SourceType,
+		Source:       material.Source,
+		Summary:      material.Summary,
+		IsPublic:     material.IsPublic,
+		PackageTitle: pkgTitle,
+		CreatedAt:    material.CreatedAt,
 	}, nil
 }
 
