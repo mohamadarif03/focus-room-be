@@ -48,8 +48,7 @@ func NewAIService(
 		return nil, err
 	}
 
-	// Model Utama (Default JSON untuk Quiz/Flashcard)
-	model := client.GenerativeModel("gemini-1.5-flash")
+	model := client.GenerativeModel("gemini-2.5-pro")
 	model.ResponseMIMEType = "application/json"
 
 	return &AIService{
@@ -160,7 +159,7 @@ func (s *AIService) IngestPDF(ctx context.Context, fileHeader *multipart.FileHea
 		rawText = strings.ReplaceAll(rawText, "\x00", "")
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	inputText := rawText
@@ -273,7 +272,7 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 		return nil, errors.New("video ini tidak memiliki teks transkrip")
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	inputText := rawText
@@ -343,7 +342,7 @@ func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummary
 		}, nil
 	}
 
-	summaryModel := s.genaiClient.GenerativeModel("gemini-1.5-flash")
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-pro")
 	summaryModel.ResponseMIMEType = "text/plain"
 
 	prompt := getLecturerPrompt(material.ExtractedText)
