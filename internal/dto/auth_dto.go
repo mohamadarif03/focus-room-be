@@ -26,3 +26,7 @@ type DailyQuizStatusResponse struct {
 	Streak   int    `json:"streak"`
 	Username string `json:"username"`
 }
+
+type GoogleLoginRequest struct {
+	Token string `json:"token" binding:"required"`
+}

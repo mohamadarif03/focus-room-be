@@ -51,7 +51,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	utils.Success(c.Writer, response, "User registered successfully", http.StatusCreated)
 }
 
-
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 
@@ -81,4 +80,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 func (h *AuthHandler) Logout(c *gin.Context) {
 	utils.Success(c.Writer, nil, "Logout successful", http.StatusOK)
+}
+
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
+	var req dto.GoogleLoginRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, "Token required", http.StatusBadRequest)
+		return
+	}
+
+	response, err := h.service.GoogleLogin(req, c.Request.Context())
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, response, "Login berhasil", http.StatusOK)
 }
