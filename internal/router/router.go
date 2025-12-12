@@ -50,6 +50,7 @@ func SetupRouter(
 		{
 			authGroup.POST("/register", authHandler.Register)
 			authGroup.POST("/login", authHandler.Login)
+			authGroup.POST("/logout", authHandler.Logout)
 		}
 
 		authedGroup := api.Group("/")

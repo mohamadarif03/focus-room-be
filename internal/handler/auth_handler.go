@@ -78,3 +78,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	utils.Success(c.Writer, response, "Login berhasil", http.StatusOK)
 }
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	utils.Success(c.Writer, nil, "Logout successful", http.StatusOK)
+}
