@@ -693,8 +693,9 @@ func (s *AIService) GetDailyQuizStatus(userIDString string) (*dto.DailyQuizStatu
 	}
 
 	return &dto.DailyQuizStatusResponse{
-		IsDone: isDone,
-		Streak: user.CurrentStreak,
+		IsDone:   isDone,
+		Streak:   user.CurrentStreak,
+		Username: user.Username,
 	}, nil
 }
 

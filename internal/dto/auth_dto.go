@@ -22,6 +22,7 @@ type LoginRequest struct {
 }
 
 type DailyQuizStatusResponse struct {
-	IsDone bool `json:"is_done"`
-	Streak int  `json:"streak"`
+	IsDone   bool   `json:"is_done"`
+	Streak   int    `json:"streak"`
+	Username string `json:"username"`
 }
