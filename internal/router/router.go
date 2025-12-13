@@ -27,7 +27,7 @@ func SetupRouter(
 		AllowOrigins: []string{
 			"http://localhost:5173",
 			"http://localhost:5174",
-			"https://rangkuminai.vercel.app",
+			"https://coby-learn-ai.vercel.app",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
