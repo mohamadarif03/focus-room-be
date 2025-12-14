@@ -8,6 +8,9 @@ import (
 	"github.com/mohamadarif03/focus-room-be/internal/service"
 	"github.com/mohamadarif03/focus-room-be/pkg/utils"
 
+	"net/url"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -53,17 +56,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+
 	if token == "" {
-		utils.Error(c.Writer, nil, "Token verifikasi tidak ditemukan", http.StatusBadRequest)
+		c.Redirect(http.StatusFound, frontendURL+"/sign-in?error=token_missing")
 		return
 	}
 
 	if err := h.service.VerifyEmail(token); err != nil {
-		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		c.Redirect(http.StatusFound, frontendURL+"/sign-in?error="+url.QueryEscape(err.Error()))
 		return
 	}
 
-	utils.Success(c.Writer, nil, "Email berhasil diverifikasi. Silakan login.", http.StatusOK)
+	c.Redirect(http.StatusFound, frontendURL+"/sign-in?verified=true")
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {

@@ -20,17 +20,17 @@ func SendVerificationEmail(to, token string) error {
 
 	verifyLink := fmt.Sprintf("http://localhost:8080/api/v1/auth/verify?token=%s", token)
 
-	subject := "Subject: Verifikasi Email Focus Room\n"
+	subject := "Subject: CobyLearnAI - Email Verification\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	body := fmt.Sprintf(`
 		<html>
 		<body>
-			<h3>Selamat Datang di Focus Room!</h3>
-			<p>Silakan klik link di bawah ini untuk memverifikasi email Anda:</p>
-			<a href="%s">Verifikasi Email</a>
-			<p>Atau copy link ini: %s</p>
-			<p>Terima kasih,</p>
-			<p>Tim Focus Room</p>
+			<h3>Welcome to CobyLearnAI!</h3>
+			<p>Please click the link below to verify your email address:</p>
+			<a href="%s">Verify Email</a>
+			<p>Or copy this link: %s</p>
+			<p>Thank you,</p>
+			<p>CobyLearnAI Team</p>
 		</body>
 		</html>
 	`, verifyLink, verifyLink)
