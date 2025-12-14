@@ -16,3 +16,8 @@ type UpdateUserRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Role     string `json:"role" binding:"required,oneof=siswa pembimbing admin"`
 }
+
+type UpdateProfileRequest struct {
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+}

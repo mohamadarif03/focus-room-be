@@ -88,6 +88,47 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	utils.Success(c.Writer, user, "Berhasil memperbarui user", http.StatusOK)
 }
 
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userIDString, exists := c.Get("user_id")
+	if !exists {
+		utils.Error(c.Writer, nil, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := strconv.ParseUint(userIDString.(string), 10, 32)
+	if err != nil {
+		utils.Error(c.Writer, nil, "Invalid User ID", http.StatusBadRequest)
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Invalid input data", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	user, err := h.service.UpdateProfile(uint(userID), req)
+	if err != nil {
+		if err.Error() == "email already registered" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusConflict)
+			return
+		}
+		if err.Error() == "user not found" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
+			return
+		}
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	utils.Success(c.Writer, user, "Profile updated successfully", http.StatusOK)
+}
+
 func (h *UserHandler) CheckAndUpdateStreak(c *gin.Context) {
 	userIDString, exists := c.Get("user_id")
 	if !exists {

@@ -78,7 +78,6 @@ func (s *AIService) validatePackage(pkgIDStr string, userID uint) (*uint, error)
 	return &finalID, nil
 }
 
-// --- Helper Prompt Dosen (Agar Konsisten) ---
 func getLecturerPrompt(text string) string {
 	return fmt.Sprintf(`
 Jelaskan ulang isi materi berikut secara jelas, mendalam, dan terstruktur, seperti seorang dosen profesional yang menjelaskan konsep di kelas, namun tanpa sapaan pembuka atau penutup.

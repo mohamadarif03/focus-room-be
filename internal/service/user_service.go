@@ -89,6 +89,34 @@ func (s *UserService) UpdateUser(id uint, req dto.UpdateUserRequest) (*dto.UserR
 	return &response, nil
 }
 
+func (s *UserService) UpdateProfile(id uint, req dto.UpdateProfileRequest) (*dto.UserResponse, error) {
+	user, err := s.userRepo.FindByID(id)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	if user.Email != req.Email {
+		existing, err := s.userRepo.FindByEmail(req.Email)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("database error")
+		}
+		if existing != nil {
+			return nil, errors.New("email already registered")
+		}
+	}
+
+	user.Username = req.Username
+	user.Email = req.Email
+
+	updatedUser, err := s.userRepo.Update(user)
+	if err != nil {
+		return nil, err
+	}
+
+	response := userToResponse(updatedUser)
+	return &response, nil
+}
+
 func (s *UserService) DeleteUser(id uint) error {
 	_, err := s.userRepo.FindByID(id)
 	if err != nil {

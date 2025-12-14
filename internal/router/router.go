@@ -58,6 +58,7 @@ func SetupRouter(
 		authedGroup.Use(middleware.AuthMiddleware())
 		{
 			authedGroup.GET("/users/me", userHandler.GetSelf)
+			authedGroup.PUT("/users/me", userHandler.UpdateProfile)
 		}
 
 		studentGroup := api.Group("/student")
