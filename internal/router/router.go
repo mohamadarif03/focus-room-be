@@ -109,7 +109,7 @@ func SetupRouter(
 
 			dailyQuizGroup := studentGroup.Group("/daily-quiz")
 			{
-				dailyQuizGroup.GET("", aiHandler.GetDailyQuiz)
+				dailyQuizGroup.POST("", aiHandler.GenerateDailyQuiz)
 				dailyQuizGroup.POST("/claim", aiHandler.ClaimDailyStreak)
 				dailyQuizGroup.GET("/status", aiHandler.GetDailyQuizStatus)
 			}

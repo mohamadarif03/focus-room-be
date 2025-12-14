@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mohamadarif03/focus-room-be/internal/dto"
@@ -139,13 +140,19 @@ func (h *AIHandler) GenerateFlashcards(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Flashcards berhasil dibuat", http.StatusOK)
 }
 
-// GET /daily-quiz
-func (h *AIHandler) GetDailyQuiz(c *gin.Context) {
+// POST /daily-quiz
+func (h *AIHandler) GenerateDailyQuiz(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
-	resp, err := h.service.GetDailyQuiz(c.Request.Context(), userID.(string))
+	var req dto.GenerateDailyQuizRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, "Missing mode or topic", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.GenerateDailyQuiz(c.Request.Context(), userID.(string), req)
 	if err != nil {
-		if err.Error() == "anda belum mengupload materi apapun" {
+		if strings.Contains(err.Error(), "anda belum memiliki materi") {
 			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
 			return
 		}

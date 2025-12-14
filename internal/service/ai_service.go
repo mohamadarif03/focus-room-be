@@ -513,7 +513,7 @@ func (s *AIService) GenerateQuiz(ctx context.Context, req dto.GenerateQuizReques
 	}, nil
 }
 
-func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto.DailyQuizResponse, error) {
+func (s *AIService) GenerateDailyQuiz(ctx context.Context, userIDString string, req dto.GenerateDailyQuizRequest) (*dto.DailyQuizResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
 	user, err := s.userRepo.FindByID(uint(userID))
@@ -536,46 +536,55 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 		}
 	}
 
-	count, err := s.matRepo.CountByUserID(uint(userID))
-	if count == 0 {
-		return nil, errors.New("anda belum mengupload materi apapun")
-	}
+	// Mode handling
+	var promptContext string
 
-	materials, err := s.matRepo.FindRandomByUserID(uint(userID), 3)
-	if err != nil {
-		return nil, errors.New("gagal mengambil materi acak")
-	}
-
-	var combinedText strings.Builder
-
-	for _, m := range materials {
-		textToUse := ""
-
-		if m.Summary != "" && len(m.Summary) > 50 {
-			textToUse = m.Summary
-		} else {
-			if len(m.ExtractedText) > 4000 {
-				textToUse = m.ExtractedText[:4000] + "..."
-			} else {
-				textToUse = m.ExtractedText
-			}
+	if req.Mode == "topic" {
+		if req.Topic == "" {
+			return nil, errors.New("topik harus diisi jika mode topic dipilih")
+		}
+		promptContext = fmt.Sprintf("Topik: %s", req.Topic)
+	} else {
+		// Default / Random Mode
+		count, err := s.matRepo.CountByUserID(uint(userID))
+		if count == 0 {
+			// Jika tidak ada materi, arahkan user untuk menggunakan mode topic
+			return nil, errors.New("anda belum memiliki materi. silakan pilih opsi 'Topik Baru' untuk generate quiz")
 		}
 
-		combinedText.WriteString(fmt.Sprintf("\n--- Topik: %s ---\n", m.Title))
-		combinedText.WriteString(textToUse)
-		combinedText.WriteString("\n")
+		materials, err := s.matRepo.FindRandomByUserID(uint(userID), 3)
+		if err != nil {
+			return nil, errors.New("gagal mengambil materi acak")
+		}
+
+		var combinedText strings.Builder
+		for _, m := range materials {
+			textToUse := ""
+			if m.Summary != "" && len(m.Summary) > 50 {
+				textToUse = m.Summary
+			} else {
+				if len(m.ExtractedText) > 4000 {
+					textToUse = m.ExtractedText[:4000] + "..."
+				} else {
+					textToUse = m.ExtractedText
+				}
+			}
+			combinedText.WriteString(fmt.Sprintf("\n--- Topik: %s ---\n", m.Title))
+			combinedText.WriteString(textToUse)
+			combinedText.WriteString("\n")
+		}
+		promptContext = fmt.Sprintf("Materi Gabungan:\n%s", combinedText.String())
 	}
 
-	finalText := combinedText.String()
-
-	if len(finalText) > 15000 {
-		finalText = finalText[:15000]
+	// Limit context length
+	if len(promptContext) > 15000 {
+		promptContext = promptContext[:15000]
 	}
 
 	s.geminiModel.ResponseMIMEType = "application/json"
 
 	prompt := fmt.Sprintf(`
-		Buatkan 10 soal pilihan ganda yang menguji pemahaman konsep dari rangkuman materi-materi berikut.
+		Buatkan 10 soal pilihan ganda yang menguji pemahaman konsep dari konteks berikut.
 		
 		Format Output HARUS JSON ARRAY MURNI (Strict JSON):
 		[
@@ -592,9 +601,9 @@ func (s *AIService) GetDailyQuiz(ctx context.Context, userIDString string) (*dto
 			}
 		]
 
-		Materi Gabungan:
+		Konteks:
 		%s
-	`, finalText)
+	`, promptContext)
 
 	resp, err := s.geminiModel.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {

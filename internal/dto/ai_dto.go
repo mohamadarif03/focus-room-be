@@ -82,6 +82,17 @@ type ChatResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type DailyQuizStatusResponse struct {
+	IsDone   bool   `json:"is_done"`
+	Streak   int    `json:"streak"`
+	Username string `json:"username"`
+}
+
+type GenerateDailyQuizRequest struct {
+	Mode  string `json:"mode" binding:"required,oneof=random topic"` // "random" or "topic"
+	Topic string `json:"topic"`                                      // Required if mode is "topic"
+}
+
 type ChatHistoryItem struct {
 	ID        uint      `json:"id"`
 	Role      string    `json:"role"`

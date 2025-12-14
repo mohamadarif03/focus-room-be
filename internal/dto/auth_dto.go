@@ -21,12 +21,6 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type DailyQuizStatusResponse struct {
-	IsDone   bool   `json:"is_done"`
-	Streak   int    `json:"streak"`
-	Username string `json:"username"`
-}
-
 type GoogleLoginRequest struct {
 	Token string `json:"token" binding:"required"`
 }
