@@ -97,6 +97,7 @@ func SetupRouter(
 				materialGroup.DELETE("/:id", aiHandler.DeleteMaterial)
 				materialGroup.POST("/pdf", aiHandler.IngestPDF)
 				materialGroup.POST("/youtube", aiHandler.IngestYouTube)
+				materialGroup.POST("/text", aiHandler.IngestText)
 			}
 
 			aiGroup := studentGroup.Group("/ai")

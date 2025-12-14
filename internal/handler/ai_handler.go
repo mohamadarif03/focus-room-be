@@ -72,6 +72,25 @@ func (h *AIHandler) IngestYouTube(c *gin.Context) {
 	utils.Success(c.Writer, resp, "Berhasil memproses YouTube", http.StatusCreated)
 }
 
+func (h *AIHandler) IngestText(c *gin.Context) {
+	var req dto.IngestTextRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	role, _ := c.Get("role")
+
+	resp, err := h.service.IngestText(c.Request.Context(), req, userID.(string), role.(string))
+	if err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, resp, "Berhasil memproses Teks", http.StatusCreated)
+}
+
 // GET /materials?package_id=1
 func (h *AIHandler) GetMaterials(c *gin.Context) {
 	userID, _ := c.Get("user_id")

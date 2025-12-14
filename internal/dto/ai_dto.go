@@ -19,6 +19,12 @@ type IngestYouTubeRequest struct {
 	PackageID *uint  `json:"package_id"`
 }
 
+type IngestTextRequest struct {
+	Title     string `json:"title" binding:"required"`
+	Content   string `json:"content" binding:"required"`
+	PackageID *uint  `json:"package_id"`
+}
+
 type GenerateSummaryRequest struct {
 	MaterialID uint `json:"material_id" binding:"required"`
 }

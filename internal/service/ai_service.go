@@ -326,6 +326,78 @@ func (s *AIService) IngestYouTube(ctx context.Context, req dto.IngestYouTubeRequ
 	}, nil
 }
 
+func (s *AIService) IngestText(ctx context.Context, req dto.IngestTextRequest, userIDString, userRole string) (*dto.MaterialResponse, error) {
+	userID, _ := strconv.ParseUint(userIDString, 10, 32)
+	var pkgID *uint
+
+	if req.PackageID != nil {
+		_, err := s.pkgRepo.FindByID(*req.PackageID, uint(userID))
+		if err != nil {
+			return nil, errors.New("package tidak ditemukan atau anda bukan pemiliknya")
+		}
+		pkgID = req.PackageID
+	}
+
+	rawText := req.Content
+	if len(rawText) < 10 {
+		return nil, errors.New("konten teks terlalu pendek")
+	}
+
+	summaryModel := s.genaiClient.GenerativeModel("gemini-2.5-flash")
+	summaryModel.ResponseMIMEType = "text/plain"
+
+	inputText := rawText
+	if len(inputText) > 30000 {
+		inputText = inputText[:30000] + "..."
+	}
+
+	prompt := getLecturerPrompt(inputText)
+	summary := ""
+
+	resp, err := summaryModel.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		log.Printf("Warning: Gagal auto-summary Text: %v", err)
+	} else {
+		if len(resp.Candidates) > 0 {
+			for _, part := range resp.Candidates[0].Content.Parts {
+				if txt, ok := part.(genai.Text); ok {
+					summary += string(txt)
+				}
+			}
+		}
+	}
+
+	isPublic := false
+	if userRole == "admin" {
+		isPublic = true
+	}
+
+	newMaterial := &model.Material{
+		UserID:        uint(userID),
+		Title:         req.Title,
+		SourceType:    "text",
+		Source:        "User Input",
+		ExtractedText: rawText,
+		Summary:       summary,
+		PackageID:     pkgID,
+		IsPublic:      isPublic,
+	}
+
+	savedMat, err := s.matRepo.Save(newMaterial)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menyimpan materi: %w", err)
+	}
+
+	return &dto.MaterialResponse{
+		ID:         savedMat.ID,
+		Title:      savedMat.Title,
+		SourceType: savedMat.SourceType,
+		Source:     savedMat.Source,
+		Summary:    savedMat.Summary,
+		IsPublic:   savedMat.IsPublic,
+	}, nil
+}
+
 func (s *AIService) GenerateSummary(ctx context.Context, req dto.GenerateSummaryRequest, userIDString string) (*dto.GenerateSummaryResponse, error) {
 	userID, _ := strconv.ParseUint(userIDString, 10, 32)
 
