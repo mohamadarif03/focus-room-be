@@ -15,9 +15,11 @@ type User struct {
 	LastStreakCheckDate   *time.Time `gorm:"null" json:"last_streak_check_date"`
 	LastStreakAwardedDate *time.Time `gorm:"null" json:"last_streak_awarded_date"`
 	KodePembimbing        *string    `gorm:"size:50;unique;null" json:"kode_pembimbing"`
+	IsVerified            bool       `gorm:"default:false" json:"is_verified"`
+	VerificationToken     string     `gorm:"size:255" json:"-"`
 	CreatedAt             time.Time  `json:"created_at"`
 	UpdatedAt             time.Time  `json:"updated_at"`
 
-	Tasks []Task `gorm:"foreignKey:UserID" json:"tasks"`
+	Tasks    []Task    `gorm:"foreignKey:UserID" json:"tasks"`
 	Packages []Package `gorm:"foreignKey:UserID" json:"packages"`
 }

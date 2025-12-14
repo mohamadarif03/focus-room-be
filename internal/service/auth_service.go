@@ -41,17 +41,28 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.AuthResponse, erro
 		return nil, errors.New("password and password_confirm doesn't match")
 	}
 
-	newUser := model.User{
-		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: hashedPassword,
-		Role:         req.Role,
+	verificationToken := uuid.New().String()
+
+	newUser := &model.User{
+		Username:          req.Username,
+		Email:             req.Email,
+		PasswordHash:      hashedPassword,
+		Role:              req.Role,
+		IsVerified:        false,
+		VerificationToken: verificationToken,
+		CreatedAt:         time.Now(),
 	}
 
-	createdUser, err := s.userRepo.CreateUser(&newUser)
+	createdUser, err := s.userRepo.CreateUser(newUser)
 	if err != nil {
 		return nil, errors.New("failed to create user")
 	}
+
+	go func() {
+		if err := utils.SendVerificationEmail(createdUser.Email, verificationToken); err != nil {
+			fmt.Printf("Gagal mengirim email verifikasi ke %s: %v\n", createdUser.Email, err)
+		}
+	}()
 
 	token, err := utils.GenerateToken(createdUser.ID, createdUser.Role)
 	if err != nil {
@@ -78,6 +89,10 @@ func (s *AuthService) Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
 		return nil, errors.New("database error")
 	}
 
+	if !user.IsVerified {
+		return nil, errors.New("email belum diverifikasi. silakan cek kotak masuk anda")
+	}
+
 	isValidPassword := utils.VerifyPassword(user.PasswordHash, req.Password)
 	if !isValidPassword {
 		return nil, errors.New("email atau password salah")
@@ -97,6 +112,27 @@ func (s *AuthService) Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
 	}
 
 	return response, nil
+}
+
+func (s *AuthService) VerifyEmail(token string) error {
+	var user model.User
+	err := s.userRepo.DB.Where("verification_token = ?", token).First(&user).Error
+	if err != nil {
+		return errors.New("token verifikasi tidak valid")
+	}
+
+	if user.IsVerified {
+		return errors.New("email sudah terverifikasi")
+	}
+
+	user.IsVerified = true
+	user.VerificationToken = ""
+
+	if _, err := s.userRepo.Update(&user); err != nil { // Assuming Update accepts *model.User
+		return errors.New("gagal memverifikasi user")
+	}
+
+	return nil
 }
 
 func (s *AuthService) GoogleLogin(req dto.GoogleLoginRequest, ctx context.Context) (*dto.AuthResponse, error) {

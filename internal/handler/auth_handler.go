@@ -48,7 +48,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	utils.Success(c.Writer, response, "User registered successfully", http.StatusCreated)
+	utils.Success(c.Writer, response, "Registrasi berhasil. Silakan cek email untuk verifikasi.", http.StatusCreated)
+}
+
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		utils.Error(c.Writer, nil, "Token verifikasi tidak ditemukan", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.VerifyEmail(token); err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	utils.Success(c.Writer, nil, "Email berhasil diverifikasi. Silakan login.", http.StatusOK)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
