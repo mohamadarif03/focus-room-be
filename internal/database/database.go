@@ -14,23 +14,22 @@ var DB *gorm.DB
 func InitDB() {
 	var dsn string
 
-	databaseURL := os.Getenv("DATABASE_URL")
+	// databaseURL := os.Getenv("DATABASE_URL")
 
-	if databaseURL != "local" {
-		log.Println("test")
-		dsn = "postgresql://postgres:hByTXiRNwcGYKZvstdqKywOzonClARId@trolley.proxy.rlwy.net:25944/railway"
-	} else {
-		log.Println("DATABASE_URL tidak ditemukan, merakit DSN dari .env (mode Lokal)")
-		host := os.Getenv("DB_HOST")
-		port := os.Getenv("DB_PORT")
-		user := os.Getenv("DB_USER")
-		password := os.Getenv("DB_PASSWORD")
-		dbname := os.Getenv("DB_NAME")
-		sslmode := os.Getenv("DB_SSLMODE")
+	// if databaseURL != "local" {
+	// 	dsn = "postgresql://postgres:hByTXiRNwcGYKZvstdqKywOzonClARId@trolley.proxy.rlwy.net:25944/railway"
+	// } else {
+	// 	log.Println("DATABASE_URL tidak ditemukan, merakit DSN dari .env (mode Lokal)")
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
+	sslmode := os.Getenv("DB_SSLMODE")
 
-		dsn = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
-			host, user, password, dbname, port, sslmode)
-	}
+	dsn = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
+		host, user, password, dbname, port, sslmode)
+	// }
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 

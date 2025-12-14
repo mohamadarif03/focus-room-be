@@ -67,6 +67,7 @@ func SetupRouter(
 		studentGroup.Use(middleware.StudentMiddleware())
 		{
 			studentGroup.POST("/quizzes/:id/submit", quizHandler.SubmitQuiz)
+			studentGroup.GET("/quizzes/results/:id", quizHandler.GetAttemptReview)
 			studentGroup.GET("/quiz-attempts/:id", quizHandler.GetAttemptReview)
 			studentGroup.GET("/stats", statsHandler.GetStats)
 			studentGroup.POST("/focus/start", statsHandler.StartFocus)
