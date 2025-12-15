@@ -192,3 +192,33 @@ func (s *AuthService) GoogleLogin(req dto.GoogleLoginRequest, ctx context.Contex
 
 	return response, nil
 }
+
+func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest) error {
+	user, err := s.userRepo.FindByEmail(req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("email tidak ditemukan")
+		}
+		return errors.New("database error")
+	}
+
+	// Generate Reset Token
+	resetToken := uuid.New().String()
+	expiry := time.Now().Add(1 * time.Hour)
+
+	user.ResetPasswordToken = resetToken
+	user.ResetTokenExpiry = &expiry
+
+	if _, err := s.userRepo.Update(user); err != nil {
+		return errors.New("gagal menyimpan token reset password")
+	}
+
+	// Send Email Async
+	go func() {
+		if err := utils.SendResetPasswordEmail(user.Email, resetToken); err != nil {
+			fmt.Printf("Gagal mengirim email reset password ke %s: %v\n", user.Email, err)
+		}
+	}()
+
+	return nil
+}

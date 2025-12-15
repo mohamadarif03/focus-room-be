@@ -121,3 +121,29 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 
 	utils.Success(c.Writer, response, "Login berhasil", http.StatusOK)
 }
+
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Data yang diberikan tidak valid", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	if err := h.service.ForgotPassword(req); err != nil {
+		if err.Error() == "email tidak ditemukan" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
+			return
+		}
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, nil, "Silakan cek email Anda untuk instruksi reset password.", http.StatusOK)
+}

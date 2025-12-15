@@ -24,3 +24,7 @@ type LoginRequest struct {
 type GoogleLoginRequest struct {
 	Token string `json:"token" binding:"required"`
 }
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
