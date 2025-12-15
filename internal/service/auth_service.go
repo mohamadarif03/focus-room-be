@@ -222,3 +222,33 @@ func (s *AuthService) ForgotPassword(req dto.ForgotPasswordRequest) error {
 
 	return nil
 }
+
+func (s *AuthService) ResetPassword(req dto.ResetPasswordRequest) error {
+	var user model.User
+	if err := s.userRepo.DB.Where("reset_password_token = ?", req.Token).First(&user).Error; err != nil {
+		return errors.New("token tidak valid atau kadaluarsa")
+	}
+
+	if user.ResetTokenExpiry != nil && user.ResetTokenExpiry.Before(time.Now()) {
+		return errors.New("token sudah kadaluarsa")
+	}
+
+	if req.Password != req.PasswordConfirm {
+		return errors.New("password dan konfirmasi password tidak cocok")
+	}
+
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return errors.New("gagal mengamankan password")
+	}
+
+	user.PasswordHash = hashedPassword
+	user.ResetPasswordToken = ""
+	user.ResetTokenExpiry = nil
+
+	if _, err := s.userRepo.Update(&user); err != nil {
+		return errors.New("gagal mereset password")
+	}
+
+	return nil
+}

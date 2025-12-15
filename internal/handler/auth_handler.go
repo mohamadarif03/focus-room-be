@@ -147,3 +147,25 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	utils.Success(c.Writer, nil, "Silakan cek email Anda untuk instruksi reset password.", http.StatusOK)
 }
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Data yang diberikan tidak valid", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	if err := h.service.ResetPassword(req); err != nil {
+		utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	utils.Success(c.Writer, nil, "Password berhasil direset. Silakan login kembali.", http.StatusOK)
+}

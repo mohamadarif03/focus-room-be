@@ -54,6 +54,7 @@ func SetupRouter(
 			authGroup.POST("/google", authHandler.GoogleLogin)
 			authGroup.POST("/logout", authHandler.Logout)
 			authGroup.POST("/forgot-password", authHandler.ForgotPassword)
+			authGroup.POST("/reset-password", authHandler.ResetPassword)
 		}
 
 		authedGroup := api.Group("/")
