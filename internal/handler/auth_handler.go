@@ -58,7 +58,7 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
+		frontendURL = "https://coby-learn-ai.vercel.app"
 	}
 
 	if token == "" {

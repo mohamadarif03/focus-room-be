@@ -75,7 +75,7 @@ func SendResetPasswordEmail(to, token string) error {
 	// Let's try to get FRONTEND_URL from env, defaulting to localhost:5173 like in handler.
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
+		frontendURL = "https://coby-learn-ai.vercel.app"
 	}
 
 	resetLink := fmt.Sprintf("%s/reset-password?token=%s", frontendURL, token)
