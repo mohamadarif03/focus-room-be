@@ -135,6 +135,36 @@ func (s *AuthService) VerifyEmail(token string) error {
 	return nil
 }
 
+func (s *AuthService) ResendVerificationCode(req dto.ResendVerificationRequest) error {
+	user, err := s.userRepo.FindByEmail(req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("email tidak terdaftar")
+		}
+		return errors.New("database error")
+	}
+
+	if user.IsVerified {
+		return errors.New("email sudah terverifikasi")
+	}
+
+	// Generate new verification token
+	verificationToken := uuid.New().String()
+	user.VerificationToken = verificationToken
+
+	if _, err := s.userRepo.Update(user); err != nil {
+		return errors.New("gagal mengupdate token verifikasi")
+	}
+
+	go func() {
+		if err := utils.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			fmt.Printf("Gagal mengirim ulang email verifikasi ke %s: %v\n", user.Email, err)
+		}
+	}()
+
+	return nil
+}
+
 func (s *AuthService) GoogleLogin(req dto.GoogleLoginRequest, ctx context.Context) (*dto.AuthResponse, error) {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	if clientID == "" {

@@ -49,6 +49,7 @@ func SetupRouter(
 		authGroup := api.Group("/auth")
 		{
 			authGroup.POST("/register", authHandler.Register)
+			authGroup.POST("/resend-verification", authHandler.ResendVerificationCode)
 			authGroup.GET("/verify", authHandler.VerifyEmail)
 			authGroup.POST("/login", authHandler.Login)
 			authGroup.POST("/google", authHandler.GoogleLogin)

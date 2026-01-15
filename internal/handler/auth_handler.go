@@ -74,6 +74,36 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	c.Redirect(http.StatusFound, frontendURL+"/sign-in?verified=true")
 }
 
+func (h *AuthHandler) ResendVerificationCode(c *gin.Context) {
+	var req dto.ResendVerificationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		var validationErrs validator.ValidationErrors
+		if errors.As(err, &validationErrs) {
+			formattedErrors := utils.FormatValidationError(validationErrs)
+			utils.Error(c.Writer, formattedErrors, "Data yang diberikan tidak valid", http.StatusBadRequest)
+		} else {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	if err := h.service.ResendVerificationCode(req); err != nil {
+		if err.Error() == "email tidak terdaftar" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusNotFound)
+			return
+		}
+		if err.Error() == "email sudah terverifikasi" {
+			utils.Error(c.Writer, nil, err.Error(), http.StatusBadRequest)
+			return
+		}
+		utils.Error(c.Writer, nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.Success(c.Writer, nil, "Email verifikasi berhasil dikirim ulang.", http.StatusOK)
+}
+
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 
