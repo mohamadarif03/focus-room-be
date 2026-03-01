@@ -24,10 +24,10 @@ func SetupRouter(
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:5173",
-			"http://localhost:5174",
-			"https://coby-learn-ai.vercel.app",
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "https://coby-learn-ai.vercel.app" ||
+				origin == "http://localhost:5173" ||
+				origin == "http://localhost:5174"
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
