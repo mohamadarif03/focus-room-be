@@ -28,7 +28,7 @@ func InitDB() {
 	sslmode := os.Getenv("DB_SSLMODE")
 
 	dsn = fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai prefer_simple_protocol=true",
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
 		host, user, password, dbname, port, sslmode,
 	)
 	// }
