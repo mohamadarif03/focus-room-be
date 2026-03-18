@@ -29,6 +29,7 @@ func SetupRouter(
 				origin == "http://localhost:5173" ||
 				origin == "https://coby-learn-fe.vercel.app" ||
 				origin == "https://cobylearn.vercel.app" ||
+				origin == "https://coby-learn.vercel.app"
 				origin == "http://localhost:5174"
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
