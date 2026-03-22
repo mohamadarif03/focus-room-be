@@ -48,7 +48,7 @@ func (s *AuthService) Register(req dto.RegisterRequest) (*dto.AuthResponse, erro
 		Email:             req.Email,
 		PasswordHash:      hashedPassword,
 		Role:              req.Role,
-		IsVerified:        false,
+		IsVerified:        true,
 		VerificationToken: verificationToken,
 		CreatedAt:         time.Now(),
 	}
