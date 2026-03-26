@@ -25,13 +25,11 @@ func SetupRouter(
 
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
-			return origin == "https://coby-learn-ai.vercel.app" ||
+			return
 				origin == "http://localhost:5173" ||
-				origin == "https://coby-learn-fe.vercel.app" ||
 				origin == "https://cobylearn.vercel.app" ||
 				origin == "https://coby-learn.vercel.app" ||
-				origin == "https://hmm-apa-ya.vercel.app" ||
-				origin == "http://localhost:5174"
+				origin == "https://hmm-apa-ya.vercel.app"
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
