@@ -25,8 +25,7 @@ func SetupRouter(
 
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
-			return
-				origin == "http://localhost:5173" ||
+			return origin == "http://localhost:5173" ||
 				origin == "https://cobylearn.vercel.app" ||
 				origin == "https://coby-learn.vercel.app" ||
 				origin == "https://cobylearnai.vercel.app" ||
